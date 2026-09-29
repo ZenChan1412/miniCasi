@@ -1,5 +1,7 @@
 import React from 'react';
 import { Coins, Volume2, VolumeX, Gift, LifeBuoy, BarChart3, RefreshCw } from 'lucide-react';
+import { UserProfile } from '../../domain/entities/User';
+import { GoogleAuthButton } from './GoogleAuthButton';
 
 interface WalletBarProps {
   balance: number;
@@ -8,6 +10,12 @@ interface WalletBarProps {
   canDailyClaim: boolean;
   dailyTimer: number;
   isMuted: boolean;
+  user: UserProfile | null;
+  isConfigured: boolean;
+  clientId: string;
+  onOpenProfile: () => void;
+  onOpenConfig: () => void;
+  onCredentialSuccess: (credential: string) => void;
   onClaimBailout: () => void;
   onClaimDaily: () => void;
   onToggleSound: () => void;
@@ -22,6 +30,12 @@ export const WalletBar: React.FC<WalletBarProps> = ({
   canDailyClaim,
   dailyTimer,
   isMuted,
+  user,
+  isConfigured,
+  clientId,
+  onOpenProfile,
+  onOpenConfig,
+  onCredentialSuccess,
   onClaimBailout,
   onClaimDaily,
   onToggleSound,
@@ -40,7 +54,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
   return (
     <header className="w-full py-2.5 px-3 sm:px-6 lg:px-8 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 transition-all">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        {/* Left: Branding */}
+        {/* Left: Branding & Mobile Auth/Controls */}
         <div className="flex items-center justify-between lg:justify-start gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/25 text-xl">
@@ -62,8 +76,17 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             </div>
           </div>
 
-          {/* Quick utility controls on mobile only */}
+          {/* Quick utility controls + Auth on mobile */}
           <div className="flex items-center gap-1.5 lg:hidden">
+            <GoogleAuthButton
+              user={user}
+              isConfigured={isConfigured}
+              clientId={clientId}
+              onOpenProfile={onOpenProfile}
+              onOpenConfig={onOpenConfig}
+              onCredentialSuccess={onCredentialSuccess}
+            />
+
             <button
               type="button"
               onClick={onToggleSound}
@@ -100,7 +123,9 @@ export const WalletBar: React.FC<WalletBarProps> = ({
               <Coins className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">ยอดชิปจำลองคงเหลือ</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                {user ? `ยอดชิปบัญชี ${user.givenName || user.name}` : 'ยอดชิปจำลองคงเหลือ'}
+              </div>
               <div className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight flex items-baseline gap-1.5">
                 <span>{balance.toLocaleString()}</span>
                 <span className="text-xs text-amber-400/90 font-medium">CHIPS</span>
@@ -117,7 +142,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
           </div>
         </div>
 
-        {/* Right: Actions & Free Chips (Desktop + Mobile Action group) */}
+        {/* Right: Actions, Free Chips & Desktop Google Auth */}
         <div className="flex items-center justify-end gap-2">
           {/* Daily Bonus Button */}
           <button
@@ -181,6 +206,18 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* Desktop Google Auth Button */}
+          <div className="hidden lg:flex items-center pl-2 border-l border-slate-800">
+            <GoogleAuthButton
+              user={user}
+              isConfigured={isConfigured}
+              clientId={clientId}
+              onOpenProfile={onOpenProfile}
+              onOpenConfig={onOpenConfig}
+              onCredentialSuccess={onCredentialSuccess}
+            />
           </div>
         </div>
       </div>

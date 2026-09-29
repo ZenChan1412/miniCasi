@@ -4,8 +4,8 @@ import { BailoutOutput } from '../dtos/PlayRoundDTO';
 export class ClaimEmergencyBailoutUseCase {
   constructor(private readonly walletRepo: IWalletRepository) {}
 
-  public async execute(): Promise<BailoutOutput> {
-    const wallet = await this.walletRepo.getWallet();
+  public async execute(userId?: string): Promise<BailoutOutput> {
+    const wallet = await this.walletRepo.getWallet(userId);
     const check = wallet.canClaimBailout();
 
     if (!check.eligible) {
@@ -16,7 +16,7 @@ export class ClaimEmergencyBailoutUseCase {
     }
 
     const claimed = wallet.claimBailout();
-    await this.walletRepo.saveWallet(wallet);
+    await this.walletRepo.saveWallet(wallet, userId);
 
     return {
       claimedAmount: claimed,

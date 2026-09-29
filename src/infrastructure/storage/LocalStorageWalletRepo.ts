@@ -6,6 +6,10 @@ export class LocalStorageWalletRepo implements IWalletRepository {
   private static readonly LEGACY_KEY = 'high_low_wallet_v1';
   private static readonly CHECKSUM_SALT = 'salt_casino_mini_game_crypto_2026';
 
+  private getStorageKey(userId?: string): string {
+    return userId ? `${LocalStorageWalletRepo.STORAGE_KEY}_user_${userId}` : LocalStorageWalletRepo.STORAGE_KEY;
+  }
+
   /**
    * คำนวณ Cryptographic Checksum ด้วย SHA-256 เพื่อป้องกันการโกงคะแนนผ่าน DevTools
    */
@@ -30,16 +34,18 @@ export class LocalStorageWalletRepo implements IWalletRepository {
     return `fb_${hash.toString(16)}`;
   }
 
-  public async getWallet(): Promise<VirtualWallet> {
+  public async getWallet(userId?: string): Promise<VirtualWallet> {
     if (typeof window === 'undefined' || !window.localStorage) {
-      return new VirtualWallet('memory_user');
+      return new VirtualWallet(userId || 'memory_user');
     }
 
+    const key = this.getStorageKey(userId);
+
     try {
-      let dataStr = window.localStorage.getItem(LocalStorageWalletRepo.STORAGE_KEY);
-      
-      // ตรวจสอบ migration จาก legacy v1
-      if (!dataStr) {
+      let dataStr = window.localStorage.getItem(key);
+
+      // ตรวจสอบ migration จาก legacy v1 สำหรับ guest
+      if (!dataStr && !userId) {
         const legacyStr = window.localStorage.getItem(LocalStorageWalletRepo.LEGACY_KEY);
         if (legacyStr) {
           try {
@@ -54,7 +60,11 @@ export class LocalStorageWalletRepo implements IWalletRepository {
             // ละเว้นหาก legacy เสียหาย
           }
         }
-        return await this.resetWallet();
+        return await this.resetWallet(userId);
+      }
+
+      if (!dataStr) {
+        return await this.resetWallet(userId);
       }
 
       const parsed = JSON.parse(dataStr);
@@ -62,21 +72,22 @@ export class LocalStorageWalletRepo implements IWalletRepository {
 
       if (parsed.checksum !== expectedChecksum) {
         console.warn('ตรวจพบการดัดแปลงข้อมูลชิปใน LocalStorage! ระบบจะรีเซ็ตยอดกลับสู่ค่าเริ่มต้นเพื่อความยุติธรรม');
-        return await this.resetWallet();
+        return await this.resetWallet(userId);
       }
 
       return VirtualWallet.fromJSON(parsed.data);
     } catch (err) {
       console.error('เกิดข้อผิดพลาดในการโหลด Wallet:', err);
-      return await this.resetWallet();
+      return await this.resetWallet(userId);
     }
   }
 
-  public async saveWallet(wallet: VirtualWallet): Promise<void> {
+  public async saveWallet(wallet: VirtualWallet, userId?: string): Promise<void> {
     if (typeof window === 'undefined' || !window.localStorage) {
       return;
     }
 
+    const key = this.getStorageKey(userId);
     const state = wallet.toJSON();
     const checksum = await this.calculateChecksum(state);
     const payload = {
@@ -85,12 +96,13 @@ export class LocalStorageWalletRepo implements IWalletRepository {
       updatedAt: Date.now(),
     };
 
-    window.localStorage.setItem(LocalStorageWalletRepo.STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(key, JSON.stringify(payload));
   }
 
-  public async resetWallet(): Promise<VirtualWallet> {
-    const defaultWallet = new VirtualWallet(`guest_${Math.random().toString(36).substring(2, 9)}`);
-    await this.saveWallet(defaultWallet);
+  public async resetWallet(userId?: string): Promise<VirtualWallet> {
+    const id = userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
+    const defaultWallet = new VirtualWallet(id);
+    await this.saveWallet(defaultWallet, userId);
     return defaultWallet;
   }
 }

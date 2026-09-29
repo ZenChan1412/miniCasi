@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useGameEngine } from './presentation/store/useGameStore';
+import { useAuth } from './presentation/store/useAuthStore';
 import { WalletBar } from './presentation/components/WalletBar';
 import { DiceCup3D } from './presentation/components/DiceCup3D';
 import { BetBoard } from './presentation/components/BetBoard';
@@ -7,10 +8,27 @@ import { OutcomeAlert } from './presentation/components/OutcomeAlert';
 import { HistoryRoadmap } from './presentation/components/HistoryRoadmap';
 import { StatsModal } from './presentation/components/StatsModal';
 import { ResultModal } from './presentation/components/ResultModal';
+import { GoogleConfigModal } from './presentation/components/GoogleConfigModal';
+import { UserProfileModal } from './presentation/components/UserProfileModal';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
 import { Trophy, Percent, Flame, Sparkles } from 'lucide-react';
 
 export const App: React.FC = () => {
+  // Authentication Engine
+  const {
+    user,
+    isConfigured,
+    clientId,
+    showConfigModal,
+    setShowConfigModal,
+    showProfileModal,
+    setShowProfileModal,
+    loginWithCredential,
+    loginWithMock,
+    logout,
+  } = useAuth();
+
+  // Game Engine (scoped by user.id if logged in, or guest if not)
   const {
     balance,
     betOption,
@@ -38,7 +56,7 @@ export const App: React.FC = () => {
     claimBailout,
     claimDaily,
     resetAllData,
-  } = useGameEngine();
+  } = useGameEngine(user?.id);
 
   // Determine current category
   const isTriple = dice[0] === dice[1] && dice[1] === dice[2];
@@ -70,6 +88,14 @@ export const App: React.FC = () => {
         canDailyClaim={canDailyClaim}
         dailyTimer={dailyTimer}
         isMuted={isMuted}
+        user={user}
+        isConfigured={isConfigured}
+        clientId={clientId}
+        onOpenProfile={() => setShowProfileModal(true)}
+        onOpenConfig={() => setShowConfigModal(true)}
+        onCredentialSuccess={(credential) => {
+          loginWithCredential(credential);
+        }}
         onClaimBailout={claimBailout}
         onClaimDaily={claimDaily}
         onToggleSound={toggleSound}
@@ -250,6 +276,24 @@ export const App: React.FC = () => {
         outcome={lastOutcome}
         balance={balance}
         currentStreak={stats.currentStreak}
+      />
+
+      {/* 6. Google Config Setup Modal */}
+      <GoogleConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        onMockLogin={(mock) => loginWithMock(mock)}
+      />
+
+      {/* 7. Google User Profile Modal */}
+      <UserProfileModal
+        isOpen={showProfileModal}
+        user={user}
+        balance={balance}
+        totalRounds={stats.totalRounds}
+        winRate={stats.winRatePercentage}
+        onClose={() => setShowProfileModal(false)}
+        onLogout={logout}
       />
     </div>
   );

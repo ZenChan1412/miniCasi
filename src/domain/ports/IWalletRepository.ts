@@ -1,7 +1,7 @@
 import { VirtualWallet } from '../entities/VirtualWallet';
 
 export interface IWalletRepository {
-  getWallet(): Promise<VirtualWallet>;
-  saveWallet(wallet: VirtualWallet): Promise<void>;
-  resetWallet(): Promise<VirtualWallet>;
+  getWallet(userId?: string): Promise<VirtualWallet>;
+  saveWallet(wallet: VirtualWallet, userId?: string): Promise<void>;
+  resetWallet(userId?: string): Promise<VirtualWallet>;
 }

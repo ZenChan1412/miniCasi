@@ -36,7 +36,7 @@ export interface GameStoreState {
   showResultModal: boolean;
 }
 
-export function useGameEngine() {
+export function useGameEngine(userId?: string) {
   const [balance, setBalance] = useState<number>(1000);
   const [betOption, setBetOption] = useState<BetOption | null>('HIGH');
   const [betAmount, setBetAmount] = useState<number>(50);
@@ -78,11 +78,11 @@ export function useGameEngine() {
     [walletRepo]
   );
 
-  // Sync wallet and stats on mount
+  // Sync wallet and stats on mount or when userId changes
   const syncState = useCallback(async () => {
     try {
-      const wallet = await walletRepo.getWallet();
-      const currentStats = await historyRepo.getStats();
+      const wallet = await walletRepo.getWallet(userId);
+      const currentStats = await historyRepo.getStats(userId);
 
       setBalance(wallet.balance);
       setStats(currentStats);
@@ -98,11 +98,11 @@ export function useGameEngine() {
     } catch (e: unknown) {
       console.error('Failed to sync wallet state:', e);
     }
-  }, [walletRepo, historyRepo]);
+  }, [walletRepo, historyRepo, userId]);
 
   useEffect(() => {
     syncState();
-  }, [syncState]);
+  }, [syncState, userId]);
 
   // Interval timer for countdowns
   useEffect(() => {
@@ -174,10 +174,13 @@ export function useGameEngine() {
       soundFX.playDiceRoll();
 
       // ดำเนินการผ่าน Use Case
-      const result = await placeBetUseCase.execute({
-        option: betOption,
-        amount: betAmount,
-      });
+      const result = await placeBetUseCase.execute(
+        {
+          option: betOption,
+          amount: betAmount,
+        },
+        userId
+      );
 
       // กำหนดแต้มเป้าหมายทันที เพื่อให้ลูกเต๋าหมุนต่อเนื่อง 4-5 รอบสู่เป้าหมายตลอดช่วง 1.2 วินาที
       setDice(result.dice);
@@ -235,12 +238,12 @@ export function useGameEngine() {
       const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเล่น';
       setError(message);
     }
-  }, [isRolling, betOption, betAmount, balance, placeBetUseCase, syncState]);
+  }, [isRolling, betOption, betAmount, balance, placeBetUseCase, userId, syncState]);
 
   // Bailout
   const claimBailout = useCallback(async () => {
     try {
-      const res = await bailoutUseCase.execute();
+      const res = await bailoutUseCase.execute(userId);
       setBalance(res.newBalance);
       setCanBailout(false);
       setBailoutTimer(res.cooldownRemainingSeconds);
@@ -250,12 +253,12 @@ export function useGameEngine() {
       const message = err instanceof Error ? err.message : 'ไม่สามารถขอรับชิปได้';
       setError(message);
     }
-  }, [bailoutUseCase]);
+  }, [bailoutUseCase, userId]);
 
   // Daily Claim
   const claimDaily = useCallback(async () => {
     try {
-      const res = await dailyUseCase.execute();
+      const res = await dailyUseCase.execute(userId);
       setBalance(res.newBalance);
       setCanDailyClaim(false);
       setDailyTimer(res.cooldownRemainingSeconds);
@@ -265,20 +268,20 @@ export function useGameEngine() {
       const message = err instanceof Error ? err.message : 'ไม่สามารถรับโบนัสได้';
       setError(message);
     }
-  }, [dailyUseCase]);
+  }, [dailyUseCase, userId]);
 
   // Reset Game Data
   const resetAllData = useCallback(async () => {
     if (confirm('คุณต้องการรีเซ็ตยอดชิปและสถิติทั้งหมดกลับสู่ค่าเริ่มต้นหรือไม่?')) {
-      await walletRepo.resetWallet();
-      await historyRepo.resetStats();
+      await walletRepo.resetWallet(userId);
+      await historyRepo.resetStats(userId);
       await syncState();
       setDice([1, 2, 3]);
       setSum(6);
       setLastOutcome(null);
       setError(null);
     }
-  }, [walletRepo, historyRepo, syncState]);
+  }, [walletRepo, historyRepo, userId, syncState]);
 
   return {
     balance,

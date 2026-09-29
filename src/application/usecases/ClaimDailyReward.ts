@@ -4,8 +4,8 @@ import { DailyClaimOutput } from '../dtos/PlayRoundDTO';
 export class ClaimDailyRewardUseCase {
   constructor(private readonly walletRepo: IWalletRepository) {}
 
-  public async execute(): Promise<DailyClaimOutput> {
-    const wallet = await this.walletRepo.getWallet();
+  public async execute(userId?: string): Promise<DailyClaimOutput> {
+    const wallet = await this.walletRepo.getWallet(userId);
     const check = wallet.canClaimDaily();
 
     if (!check.eligible) {
@@ -13,7 +13,7 @@ export class ClaimDailyRewardUseCase {
     }
 
     const claimed = wallet.claimDaily();
-    await this.walletRepo.saveWallet(wallet);
+    await this.walletRepo.saveWallet(wallet, userId);
 
     return {
       claimedAmount: claimed,

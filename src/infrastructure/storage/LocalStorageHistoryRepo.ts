@@ -4,13 +4,19 @@ import { PlayerStats, StreakTracker } from '../../domain/services/StreakTracker'
 export class LocalStorageHistoryRepo implements IHistoryRepository {
   private static readonly STORAGE_KEY = 'high_low_stats_v1';
 
-  public async getStats(): Promise<PlayerStats> {
+  private getStorageKey(userId?: string): string {
+    return userId ? `${LocalStorageHistoryRepo.STORAGE_KEY}_user_${userId}` : LocalStorageHistoryRepo.STORAGE_KEY;
+  }
+
+  public async getStats(userId?: string): Promise<PlayerStats> {
     if (typeof window === 'undefined' || !window.localStorage) {
       return StreakTracker.createDefaultStats();
     }
 
+    const key = this.getStorageKey(userId);
+
     try {
-      const dataStr = window.localStorage.getItem(LocalStorageHistoryRepo.STORAGE_KEY);
+      const dataStr = window.localStorage.getItem(key);
       if (!dataStr) {
         return StreakTracker.createDefaultStats();
       }
@@ -20,16 +26,17 @@ export class LocalStorageHistoryRepo implements IHistoryRepository {
     }
   }
 
-  public async saveStats(stats: PlayerStats): Promise<void> {
+  public async saveStats(stats: PlayerStats, userId?: string): Promise<void> {
     if (typeof window === 'undefined' || !window.localStorage) {
       return;
     }
-    window.localStorage.setItem(LocalStorageHistoryRepo.STORAGE_KEY, JSON.stringify(stats));
+    const key = this.getStorageKey(userId);
+    window.localStorage.setItem(key, JSON.stringify(stats));
   }
 
-  public async resetStats(): Promise<PlayerStats> {
+  public async resetStats(userId?: string): Promise<PlayerStats> {
     const defaultStats = StreakTracker.createDefaultStats();
-    await this.saveStats(defaultStats);
+    await this.saveStats(defaultStats, userId);
     return defaultStats;
   }
 }

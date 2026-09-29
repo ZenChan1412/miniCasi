@@ -14,9 +14,9 @@ export class PlaceBetAndRollUseCase {
     private readonly rng: IRandomGenerator
   ) {}
 
-  public async execute(input: PlayRoundInput): Promise<PlayRoundOutput> {
-    const wallet = await this.walletRepo.getWallet();
-    const stats = await this.historyRepo.getStats();
+  public async execute(input: PlayRoundInput, userId?: string): Promise<PlayRoundOutput> {
+    const wallet = await this.walletRepo.getWallet(userId);
+    const stats = await this.historyRepo.getStats(userId);
 
     // 1. ตรวจสอบความถูกต้องของการแทง
     const bet = new Bet(input.option, input.amount);
@@ -44,7 +44,7 @@ export class PlaceBetAndRollUseCase {
     }
 
     // 6. บันทึกกระเป๋าชิป
-    await this.walletRepo.saveWallet(wallet);
+    await this.walletRepo.saveWallet(wallet, userId);
 
     // 7. บันทึกประวัติและอัปเดตสถิติ
     const roadmapItem: RoadmapItem = {
@@ -58,7 +58,7 @@ export class PlaceBetAndRollUseCase {
     };
 
     const updatedStats = StreakTracker.updateStats(stats, roadmapItem, evaluation.netGain);
-    await this.historyRepo.saveStats(updatedStats);
+    await this.historyRepo.saveStats(updatedStats, userId);
 
     return {
       dice,
