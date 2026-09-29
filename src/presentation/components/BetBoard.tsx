@@ -26,7 +26,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
   onRoll,
 }) => {
   return (
-    <div className="w-full max-w-md mx-auto space-y-4">
+    <div className="w-full space-y-4">
       {/* Bet Options Grid */}
       <div className="grid grid-cols-3 gap-2.5">
         {/* LOW CARD */}
@@ -173,6 +173,11 @@ export const BetBoard: React.FC<BetBoardProps> = ({
         >
           <Play className={`w-5 h-5 fill-current ${isRolling ? 'animate-spin' : ''}`} />
           <span>{isRolling ? 'กำลังทอยเต๋า...' : `ทอยเต๋า (${selectedAmount} ชิป)`}</span>
+          {!isRolling && selectedOption && balance >= selectedAmount && (
+            <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-slate-950/20 text-slate-900 rounded border border-slate-900/30">
+              Space
+            </kbd>
+          )}
         </button>
       </div>
     </div>

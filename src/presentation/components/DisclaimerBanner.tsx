@@ -5,8 +5,8 @@ export const DisclaimerBanner: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   return (
-    <footer className="w-full max-w-md mx-auto mt-4 px-3">
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-3 text-slate-400 text-xs backdrop-blur-sm">
+    <footer className="w-full max-w-7xl mx-auto mt-6 px-3 sm:px-6 lg:px-8 pb-4">
+      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-3 sm:p-4 text-slate-400 text-xs backdrop-blur-sm">
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}

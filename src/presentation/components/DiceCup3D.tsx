@@ -81,7 +81,7 @@ export const DiceCup3D: React.FC<DiceCup3DProps> = ({
   isTriple,
 }) => {
   return (
-    <div className="relative w-full max-w-md mx-auto my-3 p-5 rounded-3xl bg-gradient-to-b from-emerald-950/80 via-slate-900/90 to-slate-950 border border-emerald-500/30 shadow-2xl backdrop-blur-md">
+    <div className="relative w-full p-4 sm:p-6 lg:p-7 rounded-3xl bg-gradient-to-b from-emerald-950/80 via-slate-900/90 to-slate-950 border border-emerald-500/30 shadow-2xl backdrop-blur-md">
       {/* Table Ring Glow */}
       <div className="absolute inset-0 rounded-3xl border-2 border-emerald-400/20 pointer-events-none" />
 
@@ -91,11 +91,11 @@ export const DiceCup3D: React.FC<DiceCup3DProps> = ({
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           โต๊ะทอยลูกเต๋าจำลอง (CASUAL TABLE)
         </span>
-        <span>ลูกเต๋า 3 ลูก (Fair CSPRNG)</span>
+        <span className="text-[11px] text-slate-400">ลูกเต๋า 3 ลูก (Fair CSPRNG)</span>
       </div>
 
       {/* 3D Dice Stage */}
-      <div className="flex items-center justify-center gap-4 py-4 min-h-[110px]">
+      <div className="flex items-center justify-center gap-4 sm:gap-8 py-6 sm:py-8 min-h-[130px] sm:min-h-[150px]">
         <SingleDie value={dice[0]} isRolling={isRolling} />
         <SingleDie value={dice[1]} isRolling={isRolling} />
         <SingleDie value={dice[2]} isRolling={isRolling} />
