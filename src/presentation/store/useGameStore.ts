@@ -12,6 +12,7 @@ import { AdminGrantChipsUseCase } from '../../application/usecases/AdminGrantChi
 import { ViewAllWalletsUseCase } from "../../application/usecases/ViewAllWallets";
 import { BanUserUseCase } from "../../application/usecases/BanUser";
 import { ViewAuditLogsUseCase, AuditEntry } from "../../application/usecases/ViewAuditLogs";
+import { adminService } from '../../application/services/AdminService';
 import { soundFX } from '../../infrastructure/sound/SoundFX';
 import confetti from 'canvas-confetti';
 
@@ -162,6 +163,10 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
 
   // Main Action: Roll Dice
   const rollDice = useCallback(async () => {
+    if (adminService.isUserBanned(userId)) {
+      setError('บัญชีของคุณถูกระงับสิทธิ์การใช้งาน (Banned) โดย Admin++');
+      return;
+    }
     if (isRolling) return;
     if (!betOption) {
       setError('กรุณาเลือกช่องแทง (สูง, ต่ำ, หรือ ตอง) ก่อนกดทอย');
@@ -250,6 +255,10 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
 
   // Bailout
   const claimBailout = useCallback(async () => {
+    if (adminService.isUserBanned(userId)) {
+      setError('บัญชีของคุณถูกระงับสิทธิ์การใช้งาน (Banned) โดย Admin++');
+      return;
+    }
     try {
       const res = await bailoutUseCase.execute(userId, isAdmin);
       setBalance(res.newBalance);
@@ -265,6 +274,10 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
 
   // Daily Claim
   const claimDaily = useCallback(async () => {
+    if (adminService.isUserBanned(userId)) {
+      setError('บัญชีของคุณถูกระงับสิทธิ์การใช้งาน (Banned) โดย Admin++');
+      return;
+    }
     try {
       const res = await dailyUseCase.execute(userId, isAdmin);
       setBalance(res.newBalance);
@@ -385,5 +398,6 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
     showWallets,
     banUser,
     showAuditLogs,
+    syncState,
   };
 }

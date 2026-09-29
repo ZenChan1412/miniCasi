@@ -11,6 +11,7 @@ import { ResultModal } from './presentation/components/ResultModal';
 import { GoogleConfigModal } from './presentation/components/GoogleConfigModal';
 import { UserProfileModal } from './presentation/components/UserProfileModal';
 import { AdminPanel } from './presentation/components/AdminPanel';
+import { AdminDashboard } from './presentation/components/AdminDashboard';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
 import { hasAdminAccess } from './domain/constants/AdminConfig';
 import { Trophy, Percent, Flame, Sparkles } from 'lucide-react';
@@ -34,6 +35,7 @@ export const App: React.FC = () => {
   const isAdmin = hasAdminAccess(user?.role);
   const isCreator = user?.role === 'creator';
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [view, setView] = useState<'game' | 'dashboard'>('game');
 
   // Game Engine (scoped by user.id if logged in, or guest if not)
   const {
@@ -69,11 +71,28 @@ export const App: React.FC = () => {
     showWallets,
     banUser,
     showAuditLogs,
+    syncState,
   } = useGameEngine(user?.id, isAdmin, isCreator);
 
   // Determine current category
   const isTriple = dice[0] === dice[1] && dice[1] === dice[2];
   const category = isTriple ? 'TRIPLE' : sum >= 11 ? 'HIGH' : 'LOW';
+
+  // Sync view with URL hash (#dashboard or #admin)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.toLowerCase();
+      if ((hash === '#dashboard' || hash === '#admin') && (isAdmin || isCreator)) {
+        setView('dashboard');
+      } else if (hash === '#game' || hash === '' || hash === '#') {
+        setView('game');
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [isAdmin, isCreator]);
 
   // Desktop Keyboard Shortcut: Press Spacebar to Roll
   useEffect(() => {
@@ -91,6 +110,32 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isRolling, betOption, balance, betAmount, rollDice]);
 
+  // Dedicated Full-Page Admin++ Dashboard View
+  if (view === 'dashboard' && (isAdmin || isCreator)) {
+    return (
+      <AdminDashboard
+        currentUser={
+          user || {
+            id: 'creator_demo',
+            name: 'Songpon (Creator)',
+            email: 'songpon.official@gmail.com',
+            provider: 'google',
+            role: 'creator',
+            loggedInAt: Date.now(),
+          }
+        }
+        isCreator={isCreator}
+        onReturnToGame={() => {
+          setView('game');
+          window.location.hash = '';
+        }}
+        onRefreshWallet={() => {
+          syncState();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
       {/* 1. Full-Width Responsive Header */}
@@ -106,6 +151,10 @@ export const App: React.FC = () => {
         clientId={clientId}
         onOpenProfile={() => setShowProfileModal(true)}
         onOpenConfig={() => setShowConfigModal(true)}
+        onOpenDashboard={() => {
+          setView('dashboard');
+          window.location.hash = '#dashboard';
+        }}
         onCredentialSuccess={(credential) => {
           loginWithCredential(credential);
         }}
@@ -310,6 +359,10 @@ export const App: React.FC = () => {
         winRate={stats.winRatePercentage}
         isAdmin={isAdmin}
         isCreator={user?.role === 'creator'}
+        onOpenDashboard={() => {
+          setView('dashboard');
+          window.location.hash = '#dashboard';
+        }}
         onClose={() => setShowProfileModal(false)}
         onLogout={logout}
       />

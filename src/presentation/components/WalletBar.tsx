@@ -24,6 +24,7 @@ interface WalletBarProps {
   isAdmin: boolean;
   isCreator?: boolean;
   onOpenAdmin: () => void;
+  onOpenDashboard?: () => void;
 }
 
 export const WalletBar: React.FC<WalletBarProps> = ({
@@ -47,6 +48,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
   isAdmin,
   isCreator = false,
   onOpenAdmin,
+  onOpenDashboard,
 }) => {
   const formatTime = (seconds: number): string => {
     if (seconds <= 0) return 'พร้อมกดรับ';
@@ -121,18 +123,39 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             </button>
 
             {isAdmin && (
-              <button
-                type="button"
-                onClick={onOpenAdmin}
-                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                  isCreator
-                    ? 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-900/50'
-                    : 'bg-purple-950/50 border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50'
-                }`}
-                title={isCreator ? 'Creator Console' : 'Admin Console'}
-              >
-                {isCreator ? <Crown className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-              </button>
+              <div className="flex items-center gap-1.5">
+                {onOpenDashboard && (
+                  <button
+                    type="button"
+                    onClick={onOpenDashboard}
+                    className={`py-1.5 px-3 rounded-xl border flex items-center gap-1.5 font-bold text-xs transition-all cursor-pointer shadow-lg ${
+                      isCreator
+                        ? 'bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border-amber-500/60 text-amber-300 hover:brightness-125 hover:scale-105 shadow-amber-500/15'
+                        : 'bg-purple-950/60 border-purple-500/40 text-purple-300 hover:bg-purple-900/60 hover:scale-105'
+                    }`}
+                    title={isCreator ? 'เปิดแดชบอร์ด Admin++ เต็มรูปแบบ' : 'เปิดแดชบอร์ด Admin'}
+                  >
+                    {isCreator ? (
+                      <Crown className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                    ) : (
+                      <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
+                    )}
+                    <span>{isCreator ? '👑 Admin++ แดชบอร์ด' : '⚡ Admin แดชบอร์ด'}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onOpenAdmin}
+                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                    isCreator
+                      ? 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-900/50'
+                      : 'bg-purple-950/50 border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50'
+                  }`}
+                  title={isCreator ? 'หน้าต่างด่วน Creator' : 'หน้าต่างด่วน Admin'}
+                >
+                  {isCreator ? <Crown className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -240,18 +263,34 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             </button>
 
             {isAdmin && (
-              <button
-                type="button"
-                onClick={onOpenAdmin}
-                className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
-                  isCreator
-                    ? 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-900/50'
-                    : 'bg-purple-950/50 border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50'
-                }`}
-                title={isCreator ? 'Creator Console' : 'Admin Console'}
-              >
-                {isCreator ? <Crown className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-              </button>
+              <div className="flex items-center gap-1">
+                {onOpenDashboard && (
+                  <button
+                    type="button"
+                    onClick={onOpenDashboard}
+                    className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                      isCreator
+                        ? 'bg-amber-950/70 border-amber-500/60 text-amber-300 hover:bg-amber-900/60'
+                        : 'bg-purple-950/70 border-purple-500/50 text-purple-300 hover:bg-purple-900/60'
+                    }`}
+                    title={isCreator ? 'เปิดแดชบอร์ด Admin++' : 'เปิดแดชบอร์ด Admin'}
+                  >
+                    <Crown className="w-4 h-4 text-amber-300" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onOpenAdmin}
+                  className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                    isCreator
+                      ? 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-900/50'
+                      : 'bg-purple-950/50 border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50'
+                  }`}
+                  title={isCreator ? 'Creator Console' : 'Admin Console'}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </div>
 

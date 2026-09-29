@@ -16,6 +16,10 @@ const mockStorage = {
   setItem: (key: string, val: string) => memoryStore.set(key, String(val)),
   removeItem: (key: string) => memoryStore.delete(key),
   clear: () => memoryStore.clear(),
+  key: (i: number) => Array.from(memoryStore.keys())[i] ?? null,
+  get length() {
+    return memoryStore.size;
+  },
 };
 
 // Polyfill window & localStorage for headless test runner

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, X, ShieldCheck, Mail, User, Coins, Trophy } from 'lucide-react';
+import { LogOut, X, ShieldCheck, Mail, User, Coins, Trophy, Crown } from 'lucide-react';
 import { UserProfile } from '../../domain/entities/User';
 
 interface UserProfileModalProps {
@@ -12,6 +12,7 @@ interface UserProfileModalProps {
   isCreator?: boolean;
   onClose: () => void;
   onLogout: () => void;
+  onOpenDashboard?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -24,6 +25,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isCreator = false,
   onClose,
   onLogout,
+  onOpenDashboard,
 }) => {
   if (!isOpen || !user) return null;
 
@@ -120,6 +122,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             * ยอดชิปและสถิติการเล่นจะถูกผูกไว้กับบัญชี Google นี้โดยเฉพาะ เมื่อกลับมาเข้าสู่ระบบอีกครั้ง ข้อมูลจะโหลดกลับมาอัตโนมัติ
           </p>
         </div>
+
+        {/* Admin++ Dashboard Action */}
+        {(isAdmin || isCreator) && onOpenDashboard && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenDashboard();
+            }}
+            className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg ${
+              isCreator
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:brightness-110 shadow-amber-500/20'
+                : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/20'
+            }`}
+          >
+            {isCreator ? <Crown className="w-4 h-4 text-slate-950" /> : <ShieldCheck className="w-4 h-4" />}
+            <span>{isCreator ? '👑 เปิดแดชบอร์ด Admin++ จัดการระบบเต็มรูปแบบ' : '⚡ เปิดแดชบอร์ด Admin'}</span>
+          </button>
+        )}
 
         {/* Logout Action */}
         <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, ExternalLink, Copy, Check, Sparkles, X, ShieldCheck } from 'lucide-react';
+import { KeyRound, ExternalLink, Copy, Check, Sparkles, X, ShieldCheck, Crown } from 'lucide-react';
 import { UserProfile } from '../../domain/entities/User';
 
 interface GoogleConfigModalProps {
@@ -118,24 +118,41 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
             type="button"
             onClick={() => {
               onMockLogin({
+                id: 'google_creator_songpon',
+                name: 'Songpon (Creator)',
+                email: 'songpon.official@gmail.com',
+                picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+              });
+              onClose();
+            }}
+            className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+          >
+            <Crown className="w-4 h-4 text-slate-950" />
+            <span>ทดสอบด้วยบัญชี Admin++ (Creator)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onMockLogin({
                 name: 'ผู้เล่นทดสอบ (Demo User)',
                 email: 'player.demo@gmail.com',
                 picture: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
               });
               onClose();
             }}
-            className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+            className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
           >
-            <Sparkles className="w-4 h-4" />
-            <span>ทดสอบด้วยบัญชีจำลอง (Mock Demo)</span>
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>ผู้เล่นทดสอบ (Player)</span>
           </button>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors cursor-pointer"
+            className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 font-medium text-xs transition-colors cursor-pointer"
           >
-            เข้าใจแล้ว ปิดหน้าต่าง
+            ปิด
           </button>
         </div>
       </div>
