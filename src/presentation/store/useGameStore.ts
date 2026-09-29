@@ -179,9 +179,11 @@ export function useGameEngine() {
         amount: betAmount,
       });
 
-      // หน่วงเวลาอนิเมชันลูกเต๋าหมุนและเด้งลงโต๊ะ
+      // กำหนดแต้มเป้าหมายทันที เพื่อให้ลูกเต๋าหมุนต่อเนื่อง 4-5 รอบสู่เป้าหมายตลอดช่วง 1.2 วินาที
+      setDice(result.dice);
+
+      // หน่วงเวลาให้ลูกเต๋าหมุน ตีลังกา และเด้งลงสู่โต๊ะอย่างเป็นธรรมชาติ
       setTimeout(() => {
-        setDice(result.dice);
         setSum(result.sum);
         setBalance(result.newBalance);
         setStats(result.stats);

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface DiceProps {
   value: number;
   isRolling: boolean;
   dieIndex: number;
-  rollEpoch: number;
 }
 
+// Canonical orientations to display face 1-6 facing the camera
 const DIE_BASE_ROTATIONS: Record<number, [number, number]> = {
   1: [0, 0],
   6: [0, 180],
@@ -16,23 +16,52 @@ const DIE_BASE_ROTATIONS: Record<number, [number, number]> = {
   4: [90, 0],
 };
 
-const SingleDie: React.FC<DiceProps> = ({ value, isRolling, dieIndex, rollEpoch }) => {
-  const baseRot = DIE_BASE_ROTATIONS[value] || [0, 0];
-  
-  // Calculate multi-revolution rotation so the die rolls naturally into place
-  // Adding varied revolutions for each die index creates an organic, unsynchronized landing
-  const extraRotX = (rollEpoch * 720) + (dieIndex === 0 ? 360 : dieIndex === 1 ? 720 : 1080);
-  const extraRotY = (rollEpoch * 720) + (dieIndex === 0 ? 720 : dieIndex === 1 ? 360 : 720);
+function getNextContinuousAngle(current: number, target: number, minSpins: number): number {
+  const normTarget = ((target % 360) + 360) % 360;
+  const normCurrent = ((current % 360) + 360) % 360;
+  let forwardDelta = normTarget - normCurrent;
+  if (forwardDelta <= 0) {
+    forwardDelta += 360;
+  }
+  return current + (minSpins * 360) + forwardDelta;
+}
 
-  const targetTransform = `rotateX(${baseRot[0] + extraRotX}deg) rotateY(${baseRot[1] + extraRotY}deg)`;
-  const rollingClass = dieIndex === 0 ? 'dice-rolling-1' : dieIndex === 1 ? 'dice-rolling-2' : 'dice-rolling-3';
+const SingleDie: React.FC<DiceProps> = ({ value, isRolling, dieIndex }) => {
+  const initialBase = DIE_BASE_ROTATIONS[value] || [0, 0];
+  const rotRef = useRef<{ x: number; y: number }>({
+    x: initialBase[0],
+    y: initialBase[1],
+  });
+
+  const [currentTransform, setCurrentTransform] = useState<string>(
+    `rotateX(${initialBase[0]}deg) rotateY(${initialBase[1]}deg) rotateZ(0deg)`
+  );
+
+  // When a roll starts or target value updates, smoothly calculate next forward multi-revolution angle
+  useEffect(() => {
+    if (isRolling) {
+      const targetBase = DIE_BASE_ROTATIONS[value] || [0, 0];
+      // Staggered revolutions for organic physics (Die 0 spins 4 turns, Die 1 spins 5 turns, Die 2 spins 4 turns)
+      const minSpinsX = dieIndex === 1 ? 5 : 4;
+      const minSpinsY = dieIndex === 0 ? 5 : 4;
+
+      const nextX = getNextContinuousAngle(rotRef.current.x, targetBase[0], minSpinsX);
+      const nextY = getNextContinuousAngle(rotRef.current.y, targetBase[1], minSpinsY);
+
+      rotRef.current = { x: nextX, y: nextY };
+      setCurrentTransform(`rotateX(${nextX}deg) rotateY(${nextY}deg) rotateZ(0deg)`);
+    }
+  }, [isRolling, value, dieIndex]);
+
+  const hopClass = isRolling ? `die-hop-${dieIndex}` : '';
+  const shadowClass = isRolling ? `shadow-hop-${dieIndex}` : '';
 
   return (
-    <div className="dice-wrapper perspective-1000 p-2 sm:p-3">
-      {/* 3D Die Cube */}
+    <div className={`dice-wrapper perspective-1000 p-2 sm:p-3 ${hopClass}`}>
+      {/* 3D Die Cube - Continuously interpolating to target angle without any warp */}
       <div
-        className={`dice-container ${isRolling ? rollingClass : ''}`}
-        style={!isRolling ? { transform: targetTransform } : undefined}
+        className="dice-container"
+        style={{ transform: currentTransform }}
       >
         {/* Face 1 (Front - Red Ace) */}
         <div className="dice-face face-1 flex items-center justify-center">
@@ -73,8 +102,8 @@ const SingleDie: React.FC<DiceProps> = ({ value, isRolling, dieIndex, rollEpoch 
         </div>
       </div>
 
-      {/* Dynamic Table Contact Shadow */}
-      <div className={`dice-shadow ${isRolling ? 'shadow-rolling' : ''}`} />
+      {/* Dynamic Table Contact Shadow Matching Vertical Hop */}
+      <div className={`dice-shadow ${shadowClass}`} />
     </div>
   );
 };
@@ -94,15 +123,6 @@ export const DiceCup3D: React.FC<DiceCup3DProps> = ({
   category,
   isTriple,
 }) => {
-  const [rollEpoch, setRollEpoch] = useState<number>(1);
-
-  // Increment epoch on each roll start to generate new rotation vectors
-  useEffect(() => {
-    if (isRolling) {
-      setRollEpoch((prev) => prev + 1);
-    }
-  }, [isRolling]);
-
   return (
     <div className="relative w-full p-4 sm:p-6 lg:p-7 rounded-3xl bg-gradient-to-b from-emerald-950/85 via-slate-900/90 to-slate-950 border border-emerald-500/35 shadow-2xl backdrop-blur-md overflow-hidden transition-all">
       {/* Luxurious Casino Table Rail & Felt Glow */}
@@ -122,11 +142,11 @@ export const DiceCup3D: React.FC<DiceCup3DProps> = ({
         <span className="text-[11px] text-slate-400 font-mono">CSPRNG Uniform Physics</span>
       </div>
 
-      {/* 3D Dice Stage with Individual Physics & Shadows */}
+      {/* 3D Dice Stage with Continuous Physics Rotation */}
       <div className="relative flex items-center justify-center gap-2 sm:gap-6 lg:gap-8 py-5 sm:py-7 min-h-[140px] sm:min-h-[160px]">
-        <SingleDie value={dice[0]} isRolling={isRolling} dieIndex={0} rollEpoch={rollEpoch} />
-        <SingleDie value={dice[1]} isRolling={isRolling} dieIndex={1} rollEpoch={rollEpoch} />
-        <SingleDie value={dice[2]} isRolling={isRolling} dieIndex={2} rollEpoch={rollEpoch} />
+        <SingleDie value={dice[0]} isRolling={isRolling} dieIndex={0} />
+        <SingleDie value={dice[1]} isRolling={isRolling} dieIndex={1} />
+        <SingleDie value={dice[2]} isRolling={isRolling} dieIndex={2} />
       </div>
 
       {/* Live Result Status Bar */}
