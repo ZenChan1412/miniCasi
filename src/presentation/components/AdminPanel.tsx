@@ -220,42 +220,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </button>
         </div>
 
-        {/* Creator-Only Actions */}
-        {isCreator && (
-          <>
-            <div className="pt-1 border-t border-slate-700/50">
-              <p className="text-[10px] text-amber-400/70 uppercase tracking-wider font-semibold mb-2">
-              Creator Exclusive (ผู้สร้าง)
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleViewAllWallets}
-                className="py-2.5 px-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:border-amber-500/40 hover:text-amber-300 transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                👁️ Wallets
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleBanUser}
-                className="py-2.5 px-2 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:bg-red-900/60 transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                🚫 Ban
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleViewAudit}
-                className="py-2.5 px-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:border-blue-500/40 hover:text-blue-300 transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                📋 Audit
-              </button>
-            </div>
+        {/* Advanced Management Tools (Admin & Creator) */}
+        <div className="pt-1 border-t border-slate-700/50">
+          <p className={`text-[10px] uppercase tracking-wider font-semibold mb-2 ${
+            isCreator ? 'text-amber-400/90' : 'text-purple-400/90'
+          }`}>
+            {isCreator ? '👑 Creator Exclusive (ผู้สร้างสูงสุด)' : '⚡ Admin Tools (เครื่องมือแอดมิน)'}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleViewAllWallets}
+              className="py-2.5 px-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:border-amber-500/40 hover:text-amber-300 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              👁️ Wallets
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleBanUser}
+              className="py-2.5 px-2 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:bg-red-900/60 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              🚫 Ban
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleViewAudit}
+              className="py-2.5 px-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:border-blue-500/40 hover:text-blue-300 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              📋 Audit
+            </button>
           </div>
-          </>
-        )}
+        </div>
 
         {/* Feedback */}
         {feedback && (

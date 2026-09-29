@@ -5,7 +5,7 @@
  */
 
 // รายชื่อผู้ดูแลระบบหลัก (Hardcoded)
-const DEFAULT_ADMIN_EMAILS = ['seree999@gmail.com'];
+const DEFAULT_ADMIN_EMAILS = ['seree999@gmail.com', 'seree@gmail.com'];
 
 // ผู้สร้าง (Creator / Admin++) — เหนือกว่า Admin ทุกประการ (เจ้าของเกม)
 const DEFAULT_CREATOR_EMAILS = ['songpon.official@gmail.com'];
@@ -77,13 +77,37 @@ export function removeDynamicAdminEmail(email: string): void {
 }
 
 /**
+ * ตรวจสอบว่าบุคคลนี้เป็นผู้สร้าง (Creator / Admin++) หรือไม่
+ */
+export function isCreatorEmail(email?: string | null): boolean {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return false;
+  return (
+    CREATOR_EMAILS.includes(normalized) ||
+    normalized === 'songpon.official' ||
+    normalized.startsWith('songpon.official@')
+  );
+}
+
+/**
  * หา role สูงสุดของ email ตามลำดับชั้น: creator (Admin++) > admin > player
+ * - songpon.official@gmail.com -> creator
+ * - seree999@gmail.com / seree@gmail.com -> admin
  */
 export function resolveRole(email?: string | null): 'creator' | 'admin' | 'player' {
   const normalized = normalizeEmail(email);
   if (!normalized) return 'player';
-  if (CREATOR_EMAILS.includes(normalized)) return 'creator';
-  if (ADMIN_EMAILS.includes(normalized) || getDynamicAdminEmails().includes(normalized)) return 'admin';
+  if (isCreatorEmail(normalized)) return 'creator';
+  if (
+    ADMIN_EMAILS.includes(normalized) ||
+    getDynamicAdminEmails().includes(normalized) ||
+    normalized === 'seree' ||
+    normalized === 'seree999' ||
+    normalized.startsWith('seree999@') ||
+    normalized.startsWith('seree@')
+  ) {
+    return 'admin';
+  }
   return 'player';
 }
 
@@ -92,18 +116,16 @@ export function resolveRole(email?: string | null): 'creator' | 'admin' | 'playe
  */
 export function isAdminEmail(email?: string | null): boolean {
   const normalized = normalizeEmail(email);
+  if (!normalized) return false;
   return (
+    isCreatorEmail(normalized) ||
     ADMIN_EMAILS.includes(normalized) ||
-    CREATOR_EMAILS.includes(normalized) ||
-    getDynamicAdminEmails().includes(normalized)
+    getDynamicAdminEmails().includes(normalized) ||
+    normalized === 'seree' ||
+    normalized === 'seree999' ||
+    normalized.startsWith('seree999@') ||
+    normalized.startsWith('seree@')
   );
-}
-
-/**
- * ตรวจสอบว่าบุคคลนี้เป็นผู้สร้าง (Creator / Admin++) หรือไม่
- */
-export function isCreatorEmail(email?: string | null): boolean {
-  return CREATOR_EMAILS.includes(normalizeEmail(email));
 }
 
 /**

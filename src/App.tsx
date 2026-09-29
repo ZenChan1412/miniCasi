@@ -82,8 +82,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.toLowerCase();
-      if ((hash === '#dashboard' || hash === '#admin') && (isAdmin || isCreator)) {
-        setView('dashboard');
+      if (hash === '#dashboard' || hash === '#admin') {
+        if (isAdmin || isCreator) {
+          setView('dashboard');
+        } else if (!user) {
+          // ถ้ายังไม่ได้ล็อกอินและพยายามเข้า #admin หรือ #dashboard ให้เปิดหน้าต่างล็อกอินทันที
+          setShowConfigModal(true);
+        }
       } else if (hash === '#game' || hash === '' || hash === '#') {
         setView('game');
       }
@@ -92,7 +97,7 @@ export const App: React.FC = () => {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [isAdmin, isCreator]);
+  }, [isAdmin, isCreator, user, setShowConfigModal]);
 
   // Desktop Keyboard Shortcut: Press Spacebar to Roll
   useEffect(() => {
@@ -110,17 +115,17 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isRolling, betOption, balance, betAmount, rollDice]);
 
-  // Dedicated Full-Page Admin++ Dashboard View
+  // Dedicated Full-Page Admin / Creator Dashboard View
   if (view === 'dashboard' && (isAdmin || isCreator)) {
     return (
       <AdminDashboard
         currentUser={
           user || {
-            id: 'creator_demo',
-            name: 'Songpon (Creator)',
-            email: 'songpon.official@gmail.com',
+            id: isCreator ? 'creator_demo' : 'admin_demo',
+            name: isCreator ? 'Songpon (Creator)' : 'Seree (Admin)',
+            email: isCreator ? 'songpon.official@gmail.com' : 'seree999@gmail.com',
             provider: 'google',
-            role: 'creator',
+            role: isCreator ? 'creator' : 'admin',
             loggedInAt: Date.now(),
           }
         }

@@ -173,13 +173,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleToggleBan = async (user: ManagedUser) => {
-    if (!isCreator) {
-      showNotice('error', 'สิทธิ์ระงับผู้ใช้สงวนไว้สำหรับ Admin++ (Creator) เท่านั้น');
+    if (user.role === 'creator') {
+      showNotice('error', 'ไม่สามารถระงับบัญชีผู้สร้าง (Creator) ได้');
       return;
     }
 
-    if (user.role === 'creator') {
-      showNotice('error', 'ไม่สามารถระงับบัญชีผู้สร้าง (Creator) ได้');
+    if (!isCreator && user.role === 'admin') {
+      showNotice('error', 'Admin ไม่สามารถระงับบัญชี Admin ด้วยกันได้ (ต้องเป็น Creator เท่านั้น)');
       return;
     }
 
@@ -243,20 +243,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
 
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-amber-500/20 to-purple-500/20 border border-amber-500/40 text-amber-300 shadow-md shadow-amber-500/10">
-              <Crown className="w-5 h-5 text-amber-300" />
+            <div className={`p-2 rounded-xl border shadow-md ${
+              isCreator
+                ? 'bg-gradient-to-tr from-amber-500/20 to-yellow-500/20 border-amber-500/40 text-amber-300 shadow-amber-500/10'
+                : 'bg-gradient-to-tr from-purple-500/20 to-indigo-500/20 border-purple-500/40 text-purple-300 shadow-purple-500/10'
+            }`}>
+              {isCreator ? <Crown className="w-5 h-5 text-amber-300" /> : <ShieldCheck className="w-5 h-5 text-purple-300" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-1.5">
-                  Admin++ Dashboard
+                  {isCreator ? 'Admin++ Dashboard (ผู้สร้าง)' : 'Admin Dashboard (ผู้ดูแลระบบ)'}
                 </h1>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  {isCreator ? '👑 SUPER ADMIN' : '⚡ ADMIN'}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isCreator
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                }`}>
+                  {isCreator ? '👑 SUPER ADMIN (Creator)' : '⚡ ADMIN (ผู้ดูแลระบบ)'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 hidden sm:block">
-                ศูนย์จัดการผู้ใช้ บัญชีกระเป๋าชิป สถิติ และตรวจสอบความปลอดภัย
+                {isCreator
+                  ? 'ศูนย์จัดการระบบสูงสุด จัดการผู้ใช้ ระบบเศรษฐกิจ และแต่งตั้งสิทธิ์'
+                  : 'ศูนย์ควบคุมผู้ดูแลระบบ จัดการผู้ใช้ บัญชีกระเป๋าชิป สถิติ และตรวจสอบความปลอดภัย'}
               </p>
             </div>
           </div>
@@ -399,7 +409,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>การตั้งค่า & สิทธิ์ Admin++</span>
+            <span>{isCreator ? 'การตั้งค่า & สิทธิ์ Admin++' : 'สิทธิ์ผู้ดูแลระบบ & ภาพรวม'}</span>
           </button>
         </div>
 
@@ -585,8 +595,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <Zap className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* Ban / Unban (Creator-only) */}
-                              {isCreator && u.role !== 'creator' && (
+                              {/* Ban / Unban */}
+                              {u.role !== 'creator' && (isCreator || u.role !== 'admin') && (
                                 <button
                                   type="button"
                                   onClick={() => handleToggleBan(u)}
@@ -764,8 +774,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Dynamic Add Admin Form */}
-              {isCreator && (
+              {/* Dynamic Add Admin Form (Creator Only) or Role Overview (Admin) */}
+              {isCreator ? (
                 <div className="pt-4 border-t border-slate-800 space-y-3">
                   <div className="text-xs font-bold text-white">แต่งตั้ง Admin เพิ่มเติม:</div>
                   <div className="flex items-center gap-2 max-w-md">
@@ -808,6 +818,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="pt-4 border-t border-slate-800">
+                  <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-2">
+                    <div className="font-bold text-purple-300 flex items-center gap-2 text-xs">
+                      <ShieldCheck className="w-4 h-4 text-purple-400" />
+                      <span>ระดับสิทธิ์ปัจจุบัน: แอดมิน (Admin: {currentUser.email || currentUser.name})</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      คุณมีสิทธิ์จัดการผู้เล่น เติมชิป ล้าง Cooldown รีเซ็ตยอดกระเป๋า และระงับบัญชีผู้เล่นทั่วไปได้เต็มรูปแบบ — ส่วนการแต่งตั้งหรือถอดถอนผู้ดูแลระบบคนอื่นสงวนสิทธิ์เฉพาะ Creator (songpon.official@gmail.com) เท่านั้น
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

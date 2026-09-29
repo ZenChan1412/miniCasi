@@ -346,24 +346,24 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
   }, [walletRepo, historyRepo, userId, syncState]);
 
 
-  // Creator-Only Actions (View Wallets, Ban User, Audit Logs)
+  // Admin & Creator Actions (View Wallets, Ban User, Audit Logs)
   const showWallets = useCallback(async () => {
-    if (!isCreator) throw new Error('สิทธิ์เฉพาะผู้สร้างเท่านั้น');
+    if (!isAdmin && !isCreator) throw new Error('สิทธิ์เฉพาะผู้ดูแลระบบและผู้สร้างเท่านั้น');
     const svc = new ViewAllWalletsUseCase(walletRepo);
     return await svc.execute();
-  }, [walletRepo, isCreator]);
+  }, [walletRepo, isAdmin, isCreator]);
 
   const banUser = useCallback(async (targetUserId: string) => {
-    if (!isCreator) throw new Error('สิทธิ์เฉพาะผู้สร้างเท่านั้น');
+    if (!isAdmin && !isCreator) throw new Error('สิทธิ์เฉพาะผู้ดูแลระบบและผู้สร้างเท่านั้น');
     const svc = new BanUserUseCase(walletRepo);
     await svc.execute(targetUserId);
-  }, [walletRepo, isCreator]);
+  }, [walletRepo, isAdmin, isCreator]);
 
   const showAuditLogs = useCallback(async () => {
-    if (!isCreator) throw new Error('สิทธิ์เฉพาะผู้สร้างเท่านั้น');
+    if (!isAdmin && !isCreator) throw new Error('สิทธิ์เฉพาะผู้ดูแลระบบและผู้สร้างเท่านั้น');
     const svc = new ViewAuditLogsUseCase(historyRepo, walletRepo);
     return await svc.execute();
-  }, [historyRepo, walletRepo, isCreator]);
+  }, [historyRepo, walletRepo, isAdmin, isCreator]);
 
   return {
     balance,

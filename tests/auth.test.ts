@@ -138,15 +138,22 @@ describe('Creator & Admin Role Assignment (Email-Checked After Google Login)', (
     expect(resolveRole('songpon.official@gmail.com')).toBe('creator');
   });
 
-  it('seree999@gmail.com ต้องอยู่ในรายชื่อผู้ดูแลระบบ (Admin)', () => {
+  it('seree999@gmail.com และ seree@gmail.com ต้องได้สิทธิ์ Admin', () => {
     expect(ADMIN_EMAILS).toContain('seree999@gmail.com');
+    expect(ADMIN_EMAILS).toContain('seree@gmail.com');
     expect(isAdminEmail('seree999@gmail.com')).toBe(true);
+    expect(isAdminEmail('seree@gmail.com')).toBe(true);
+    expect(isAdminEmail('seree')).toBe(true);
     expect(resolveRole('seree999@gmail.com')).toBe('admin');
+    expect(resolveRole('seree@gmail.com')).toBe('admin');
+    expect(resolveRole('seree')).toBe('admin');
   });
 
   it('ตรวจสอบ Email แบบ Case-insensitive และตัดช่องว่าง', () => {
     expect(isAdminEmail('  Seree999@Gmail.COM ')).toBe(true);
+    expect(isAdminEmail('  Seree@Gmail.COM ')).toBe(true);
     expect(isCreatorEmail('  Songpon.Official@gmail.com  ')).toBe(true);
+    expect(isCreatorEmail('songpon.official')).toBe(true);
     expect(isAdminEmail('other@gmail.com')).toBe(false);
     expect(isAdminEmail('')).toBe(false);
     expect(isAdminEmail(null)).toBe(false);
