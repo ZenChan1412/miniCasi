@@ -21,6 +21,6 @@ export const GAME_RULES = {
   DAILY_COOLDOWN_MS: 24 * 60 * 60 * 1000, // 24 ชั่วโมง
 
   // ค่าคงที่ด้านการแสดงผล (Presentation Settings)
-  ROLL_ANIMATION_DELAY_MS: 1100, // หน่วงเวลาอนิเมชันลูกเต๋าหมุน 1.1 วินาที
+  ROLL_ANIMATION_DELAY_MS: 1200, // หน่วงเวลาอนิเมชันลูกเต๋าหมุน 1.2 วินาที เพื่อให้เต๋าหมุนและเด้งลงโต๊ะอย่างเป็นธรรมชาติ
   MAX_ROADMAP_HISTORY: 15,
 } as const;

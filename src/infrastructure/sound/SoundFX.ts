@@ -82,6 +82,28 @@ class SoundSynthesizer {
     });
   }
 
+  // เสียงลูกเต๋าตกกระทบโต๊ะ (Landing Impact)
+  public playDiceLand(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    // Deep wood/felt thud
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.12);
+  }
+
   // เสียงชนะปกติ (Win)
   public playWin(): void {
     if (this.isMuted) return;

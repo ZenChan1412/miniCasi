@@ -6,6 +6,7 @@ import { BetBoard } from './presentation/components/BetBoard';
 import { OutcomeAlert } from './presentation/components/OutcomeAlert';
 import { HistoryRoadmap } from './presentation/components/HistoryRoadmap';
 import { StatsModal } from './presentation/components/StatsModal';
+import { ResultModal } from './presentation/components/ResultModal';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
 import { Trophy, Percent, Flame, Sparkles } from 'lucide-react';
 
@@ -27,6 +28,8 @@ export const App: React.FC = () => {
     error,
     showStatsModal,
     setShowStatsModal,
+    showResultModal,
+    setShowResultModal,
     selectBetOption,
     selectBetAmount,
     clearBet,
@@ -228,6 +231,25 @@ export const App: React.FC = () => {
         isOpen={showStatsModal}
         stats={stats}
         onClose={() => setShowStatsModal(false)}
+      />
+
+      {/* 5. Clear Result Announcement Modal */}
+      <ResultModal
+        isOpen={showResultModal}
+        onClose={() => setShowResultModal(false)}
+        onPlayAgain={() => {
+          setShowResultModal(false);
+          rollDice();
+        }}
+        dice={dice}
+        sum={sum}
+        category={category}
+        isTriple={isTriple}
+        betOption={betOption}
+        betAmount={betAmount}
+        outcome={lastOutcome}
+        balance={balance}
+        currentStreak={stats.currentStreak}
       />
     </div>
   );

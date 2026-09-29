@@ -33,6 +33,7 @@ export interface GameStoreState {
   isMuted: boolean;
   error: string | null;
   showStatsModal: boolean;
+  showResultModal: boolean;
 }
 
 export function useGameEngine() {
@@ -57,6 +58,7 @@ export function useGameEngine() {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
+  const [showResultModal, setShowResultModal] = useState<boolean>(false);
 
   // Clean Architecture Repositories & Use Cases
   const walletRepo = useMemo(() => new LocalStorageWalletRepo(), []);
@@ -165,6 +167,7 @@ export function useGameEngine() {
     try {
       setError(null);
       setIsRolling(true);
+      setShowResultModal(false);
       setLastOutcome(null);
 
       // เริ่มเสียงลูกเต๋า
@@ -176,13 +179,16 @@ export function useGameEngine() {
         amount: betAmount,
       });
 
-      // หน่วงเวลาอนิเมชันลูกเต๋าหมุน 1.1 วินาทีเพื่อความตื่นเต้น
+      // หน่วงเวลาอนิเมชันลูกเต๋าหมุนและเด้งลงโต๊ะ
       setTimeout(() => {
         setDice(result.dice);
         setSum(result.sum);
         setBalance(result.newBalance);
         setStats(result.stats);
         setIsRolling(false);
+
+        // เสียงลูกเต๋าตกกระทบโต๊ะ
+        soundFX.playDiceLand();
 
         const outcome = {
           won: result.won,
@@ -213,6 +219,11 @@ export function useGameEngine() {
         } else {
           soundFX.playLose();
         }
+
+        // เปิด Modal ประกาศผลลัพธ์หลังจากลูกเต๋าหยุดนิ่งลงบนโต๊ะ
+        setTimeout(() => {
+          setShowResultModal(true);
+        }, 320);
 
         // ตรวจสอบสิทธิ์ bailout
         syncState();
@@ -284,6 +295,8 @@ export function useGameEngine() {
     error,
     showStatsModal,
     setShowStatsModal,
+    showResultModal,
+    setShowResultModal,
     selectBetOption,
     selectBetAmount,
     clearBet,
