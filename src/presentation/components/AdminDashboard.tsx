@@ -231,12 +231,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleRoleChange = async (targetUser: ManagedUser, newRole: 'creator' | 'admin' | 'player') => {
     if (!isCreator) return;
     setActionBusy(true);
+    // Optimistically update users in React state immediately
+    setUsers((prev) =>
+      prev.map((u) => (u.id === targetUser.id ? { ...u, role: newRole } : u))
+    );
     try {
       await adminService.changeUserRole(targetUser.id, targetUser.email, newRole, currentUser);
       showNotice('success', `ปรับระดับสิทธิ์ของ "${targetUser.name}" เป็น ${newRole.toUpperCase()} เรียบร้อยแล้ว`);
       await loadDashboardData();
     } catch (e) {
       showNotice('error', e instanceof Error ? e.message : 'เปลี่ยนระดับสิทธิ์ไม่สำเร็จ');
+      await loadDashboardData();
     } finally {
       setActionBusy(false);
     }

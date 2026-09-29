@@ -143,5 +143,26 @@ describe('AdminService & User Management System (Admin++)', () => {
     const target = users.find((u) => u.id === targetUserId || u.email === targetEmail);
     expect(target?.role).toBe('admin');
   });
+
+  it('ควรระบุและอัปเดตสิทธิ์ของ google_admin_seree ได้ถูกต้องและไม่หลุดเป็น player แม้ไม่มี email', async () => {
+    // ตรวจสอบว่าเริ่มต้นต้องเป็น admin
+    let users = await adminService.getAllUsers();
+    let seree = users.find((u) => u.id === 'google_admin_seree');
+    expect(seree).toBeDefined();
+    expect(seree?.role).toBe('admin');
+
+    // ปรับสิทธิ์เป็น creator
+    await adminService.changeUserRole('google_admin_seree', undefined, 'creator', creatorActor);
+    users = await adminService.getAllUsers();
+    seree = users.find((u) => u.id === 'google_admin_seree');
+    expect(seree?.role).toBe('creator');
+
+    // ปรับกลับเป็น admin
+    await adminService.changeUserRole('google_admin_seree', undefined, 'admin', creatorActor);
+    users = await adminService.getAllUsers();
+    seree = users.find((u) => u.id === 'google_admin_seree');
+    expect(seree?.role).toBe('admin');
+  });
 });
+
 

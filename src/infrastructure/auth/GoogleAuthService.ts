@@ -1,7 +1,7 @@
 import { UserProfile } from '../../domain/entities/User';
 import { IAuthService } from '../../domain/ports/IAuthService';
 import { decodeGoogleJwt } from './jwtDecoder';
-import { resolveRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
+import { resolveRole, resolveUserRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
 import { adminService } from '../../application/services/AdminService';
 
 export class GoogleAuthService implements IAuthService {
@@ -42,8 +42,8 @@ export class GoogleAuthService implements IAuthService {
       if (dataStr) {
         const parsed = JSON.parse(dataStr) as UserProfile;
         // ตรวจสอบสิทธิ์ทุกครั้งที่โหลด (กัน role เก่าค้างใน localStorage — creator > admin > player)
-        if (parsed.email) {
-          parsed.role = resolveRole(parsed.email);
+        if (parsed) {
+          parsed.role = resolveUserRole(parsed.id, parsed.email, parsed.role);
         }
         this.currentUser = parsed;
         this.persistUser(parsed);
@@ -88,7 +88,7 @@ export class GoogleAuthService implements IAuthService {
       familyName: payload.family_name,
       picture: payload.picture,
       provider: 'google',
-      role: resolveRole(email),
+      role: resolveUserRole(`google_${payload.sub}`, email),
       idToken: credential,
       loggedInAt: Date.now(),
     };
@@ -102,15 +102,16 @@ export class GoogleAuthService implements IAuthService {
 
   public async loginWithMock(mockData?: Partial<UserProfile>): Promise<UserProfile> {
     const email = (mockData?.email || 'player@gmail.com').trim().toLowerCase();
+    const id = mockData?.id || `mock_${Math.random().toString(36).substring(2, 9)}`;
 
     const user: UserProfile = {
-      id: mockData?.id || `mock_${Math.random().toString(36).substring(2, 9)}`,
+      id,
       email: mockData?.email || 'player@gmail.com',
       name: mockData?.name || 'Google Player (Demo)',
       givenName: mockData?.givenName || 'Google Player',
       picture: mockData?.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
       provider: 'mock',
-      role: resolveRole(email),
+      role: resolveUserRole(id, email, mockData?.role),
       loggedInAt: Date.now(),
     };
 
@@ -123,6 +124,7 @@ export class GoogleAuthService implements IAuthService {
 
   public updateCurrentUserRole(role: 'creator' | 'admin' | 'player'): void {
     if (!this.currentUser) return;
+    setUserRoleOverride(this.currentUser.id, role);
     if (this.currentUser.email) {
       setUserRoleOverride(this.currentUser.email, role);
     }

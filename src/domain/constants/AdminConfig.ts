@@ -107,10 +107,40 @@ export function removeDynamicAdminEmail(email: string): void {
   window.localStorage.setItem('high_low_dynamic_admin_emails', JSON.stringify(updated));
 }
 
-/** กำหนดสิทธิ์ของผู้ใช้แบบเจาะจง (Creator / Admin / Player) */
-export function setUserRoleOverride(email: string, role: 'creator' | 'admin' | 'player'): void {
-  const normalized = normalizeEmail(email);
+const ROLE_OVERRIDES_KEY = 'high_low_user_role_overrides_v1';
+
+export function getAllRoleOverrides(): Record<string, 'creator' | 'admin' | 'player'> {
+  if (typeof window === 'undefined' || !window.localStorage) return {};
+  try {
+    const raw = window.localStorage.getItem(ROLE_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getUserRoleOverride(identifier?: string | null): 'creator' | 'admin' | 'player' | null {
+  if (!identifier) return null;
+  const key = identifier.trim().toLowerCase();
+  const overrides = getAllRoleOverrides();
+  return overrides[key] || null;
+}
+
+/** กำหนดสิทธิ์ของผู้ใช้แบบเจาะจง ทั้งอีเมลหรือ User ID (Creator / Admin / Player) */
+export function setUserRoleOverride(identifier: string, role: 'creator' | 'admin' | 'player'): void {
+  const normalized = normalizeEmail(identifier);
   if (!normalized) return;
+
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const overrides = getAllRoleOverrides();
+      overrides[normalized] = role;
+      window.localStorage.setItem(ROLE_OVERRIDES_KEY, JSON.stringify(overrides));
+    } catch (e) {
+      console.error('Failed to save role override:', e);
+    }
+  }
+
   if (role === 'creator') {
     addDynamicCreatorEmail(normalized);
     removeDynamicAdminEmail(normalized);
@@ -147,6 +177,8 @@ export function isCreatorEmail(email?: string | null): boolean {
 export function resolveRole(email?: string | null): 'creator' | 'admin' | 'player' {
   const normalized = normalizeEmail(email);
   if (!normalized) return 'player';
+  const override = getUserRoleOverride(normalized);
+  if (override) return override;
   if (isCreatorEmail(normalized)) return 'creator';
   if (
     ADMIN_EMAILS.includes(normalized) ||
@@ -160,6 +192,66 @@ export function resolveRole(email?: string | null): 'creator' | 'admin' | 'playe
     return 'admin';
   }
   return 'player';
+}
+
+/**
+ * หา role ของผู้ใช้ โดยพิจารณาจาก:
+ * 1. Role Override ที่ตั้งไว้เจาะจง (ผ่าน email หรือ userId)
+ * 2. ตรวจสอบเงื่อนไข Creator (Email หรือ ID ที่ระบุว่าเป็น Songpon / Creator)
+ * 3. ตรวจสอบเงื่อนไข Admin (Email หรือ ID ที่ระบุว่าเป็น Seree / Admin)
+ * 4. Stored role ที่บันทึกไว้ใน User Registry
+ * 5. Player
+ */
+export function resolveUserRole(
+  userId?: string | null,
+  email?: string | null,
+  storedRole?: 'creator' | 'admin' | 'player' | null
+): 'creator' | 'admin' | 'player' {
+  // 1. ตรวจสอบ Explicit Override ก่อนเสมอ
+  if (email) {
+    const override = getUserRoleOverride(email);
+    if (override) return override;
+  }
+  if (userId) {
+    const override = getUserRoleOverride(userId);
+    if (override) return override;
+  }
+
+  // 2. Creator checks
+  if (isCreatorEmail(email)) return 'creator';
+  if (userId) {
+    const normId = userId.toLowerCase();
+    if (
+      normId === 'google_creator_songpon' ||
+      normId === 'creator_demo' ||
+      normId.includes('creator') ||
+      normId.includes('songpon')
+    ) {
+      return 'creator';
+    }
+  }
+
+  // 3. Admin checks
+  if (isAdminEmail(email)) return 'admin';
+  if (userId) {
+    const normId = userId.toLowerCase();
+    if (
+      normId === 'google_admin_seree' ||
+      normId === 'admin_demo' ||
+      normId.includes('admin') ||
+      normId.includes('seree')
+    ) {
+      return 'admin';
+    }
+  }
+
+  // 4. Stored role
+  if (storedRole && (storedRole === 'creator' || storedRole === 'admin' || storedRole === 'player')) {
+    return storedRole;
+  }
+
+  // 5. Default by email
+  return resolveRole(email);
 }
 
 /**

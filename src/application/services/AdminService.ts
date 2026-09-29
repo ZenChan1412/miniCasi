@@ -1,7 +1,7 @@
 import { ManagedUser } from '../../domain/entities/ManagedUser';
 import { AuditRecord, AuditAction } from '../../domain/entities/AuditLog';
 import { UserProfile } from '../../domain/entities/User';
-import { resolveRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
+import { resolveRole, resolveUserRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
 import { LocalStorageWalletRepo } from '../../infrastructure/storage/LocalStorageWalletRepo';
 import { LocalStorageHistoryRepo } from '../../infrastructure/storage/LocalStorageHistoryRepo';
 import { VirtualWallet } from '../../domain/entities/VirtualWallet';
@@ -37,7 +37,7 @@ export class AdminService {
         email: user.email,
         picture: user.picture,
         provider: user.provider,
-        role: resolveRole(user.email),
+        role: resolveUserRole(user.id, user.email, user.role),
         lastActiveAt: Date.now(),
         createdAt: existing.createdAt || Date.now(),
       };
@@ -82,7 +82,7 @@ export class AdminService {
         email: currentUser.email,
         picture: currentUser.picture,
         provider: currentUser.provider,
-        role: resolveRole(currentUser.email),
+        role: resolveUserRole(currentUser.id, currentUser.email, currentUser.role),
         isBanned: this.isUserBanned(currentUser.id),
         balance: 1000,
         totalRounds: 0,
@@ -104,13 +104,16 @@ export class AdminService {
             // ไม่เขียนทับ currentUser ที่สดกว่า
             if (currentUser && id === currentUser.id) continue;
 
+            const isSeree = id === 'google_admin_seree' || id.includes('seree');
+            const isSongpon = id === 'google_creator_songpon' || id.includes('songpon');
+
             usersMap.set(id, {
               id,
-              name: u.name || id,
-              email: u.email,
+              name: u.name || (isSeree ? 'Seree (Admin)' : isSongpon ? 'Songpon (Creator)' : id),
+              email: u.email || (isSeree ? 'seree999@gmail.com' : isSongpon ? 'songpon.official@gmail.com' : undefined),
               picture: u.picture,
               provider: u.provider || 'google',
-              role: resolveRole(u.email),
+              role: resolveUserRole(id, u.email, u.role),
               isBanned: this.isUserBanned(id),
               balance: 1000,
               totalRounds: 0,
@@ -144,10 +147,22 @@ export class AdminService {
           }
 
           const isGuest = uId === 'guest';
+          const isSeree = uId === 'google_admin_seree' || uId.includes('seree');
+          const isSongpon = uId === 'google_creator_songpon' || uId.includes('songpon');
+          const defaultEmail = isSeree ? 'seree999@gmail.com' : isSongpon ? 'songpon.official@gmail.com' : undefined;
+          const defaultName = isGuest
+            ? 'ผู้เล่นทั่วไป (Guest)'
+            : isSeree
+            ? 'Seree (Admin)'
+            : isSongpon
+            ? 'Songpon (Creator)'
+            : `ผู้ใช้ ${uId.substring(0, 10)}`;
+
           usersMap.set(uId, {
             id: uId,
-            name: isGuest ? 'ผู้เล่นทั่วไป (Guest)' : `ผู้ใช้ ${uId.substring(0, 10)}`,
-            role: 'player',
+            name: defaultName,
+            email: defaultEmail,
+            role: resolveUserRole(uId, defaultEmail),
             isBanned: this.isUserBanned(uId),
             balance: 1000,
             totalRounds: 0,
@@ -171,7 +186,7 @@ export class AdminService {
               usersMap.set(bannedId, {
                 id: bannedId,
                 name: `ผู้ใช้ ${bannedId}`,
-                role: 'player',
+                role: resolveUserRole(bannedId, null),
                 isBanned: true,
                 balance: 1000,
                 totalRounds: 0,
@@ -191,13 +206,12 @@ export class AdminService {
     }
 
     // 3. เพิ่ม Default Super Users หากยังไม่มีในระบบ เพื่อให้เห็นบน Dashboard เสมอ
-    const hasCreator = Array.from(usersMap.values()).some((u) => u.role === 'creator');
-    if (!hasCreator && !usersMap.has('google_creator_songpon')) {
+    if (!usersMap.has('google_creator_songpon')) {
       usersMap.set('google_creator_songpon', {
         id: 'google_creator_songpon',
         name: 'Songpon (Creator)',
         email: 'songpon.official@gmail.com',
-        role: 'creator',
+        role: resolveUserRole('google_creator_songpon', 'songpon.official@gmail.com'),
         isBanned: false,
         balance: 999999,
         totalRounds: 150,
@@ -210,13 +224,12 @@ export class AdminService {
       });
     }
 
-    const hasAdmin = Array.from(usersMap.values()).some((u) => u.role === 'admin');
-    if (!hasAdmin && !usersMap.has('google_admin_seree')) {
+    if (!usersMap.has('google_admin_seree')) {
       usersMap.set('google_admin_seree', {
         id: 'google_admin_seree',
         name: 'Seree (Admin)',
         email: 'seree999@gmail.com',
-        role: 'admin',
+        role: resolveUserRole('google_admin_seree', 'seree999@gmail.com'),
         isBanned: false,
         balance: 50000,
         totalRounds: 80,
@@ -247,12 +260,12 @@ export class AdminService {
         user.isBanned = this.isUserBanned(id);
 
         if (currentUser && (id === currentUser.id || (currentUser.email && user.email === currentUser.email))) {
-          user.role = resolveRole(currentUser.email);
+          user.role = resolveUserRole(currentUser.id, currentUser.email, user.role);
           user.name = currentUser.name;
           user.email = currentUser.email;
           if (currentUser.picture) user.picture = currentUser.picture;
         } else {
-          user.role = resolveRole(user.email);
+          user.role = resolveUserRole(id, user.email, user.role);
         }
       } catch (err) {
         console.warn(`Could not sync live wallet for ${id}:`, err);
@@ -408,8 +421,18 @@ export class AdminService {
       throw new Error('เฉพาะผู้สร้าง (Creator / Admin++) เท่านั้นที่มีสิทธิ์เปลี่ยนระดับผู้ใช้');
     }
 
-    if (targetEmail) {
-      setUserRoleOverride(targetEmail, newRole);
+    const effectiveEmail =
+      targetEmail ||
+      (targetUserId === 'google_admin_seree' || targetUserId.includes('seree')
+        ? 'seree999@gmail.com'
+        : targetUserId === 'google_creator_songpon' || targetUserId.includes('songpon')
+        ? 'songpon.official@gmail.com'
+        : undefined);
+
+    // บันทึก override ทั้ง ID และ Email
+    setUserRoleOverride(targetUserId, newRole);
+    if (effectiveEmail) {
+      setUserRoleOverride(effectiveEmail, newRole);
     }
 
     const ls = this.getStorage();
@@ -421,8 +444,14 @@ export class AdminService {
         registry[targetUserId] = {
           ...existing,
           id: targetUserId,
-          name: existing.name || targetEmail || targetUserId,
-          email: targetEmail || existing.email,
+          name:
+            existing.name ||
+            (targetUserId === 'google_admin_seree'
+              ? 'Seree (Admin)'
+              : targetUserId === 'google_creator_songpon'
+              ? 'Songpon (Creator)'
+              : effectiveEmail || targetUserId),
+          email: effectiveEmail || existing.email,
           role: newRole,
           lastActiveAt: Date.now(),
           createdAt: existing.createdAt || Date.now(),
@@ -438,8 +467,8 @@ export class AdminService {
       actorRole: actor.role || 'creator',
       action: newRole === 'player' ? 'ROLE_DEMOTE' : 'ROLE_PROMOTE',
       targetUserId,
-      targetName: targetEmail || targetUserId,
-      detail: `เปลี่ยนระดับสิทธิ์ของ ${targetEmail || targetUserId} เป็น ${newRole.toUpperCase()} โดย ${actor.email || actor.name}`,
+      targetName: effectiveEmail || targetUserId,
+      detail: `เปลี่ยนระดับสิทธิ์ของ ${effectiveEmail || targetUserId} เป็น ${newRole.toUpperCase()} โดย ${actor.email || actor.name}`,
     });
   }
 
