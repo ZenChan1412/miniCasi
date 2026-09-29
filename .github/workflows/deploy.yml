@@ -1,31 +1,43 @@
-name: Deploy to Cloudflare Pages
+name: CI/CD Quality Pipeline & Cloudflare Pages Deploy
 
 on:
   push:
     branches:
       - master
       - main
+  pull_request:
+    branches:
+      - master
+      - main
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  validate-and-deploy:
+    name: Test, Build & Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: 1. Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
+      - name: 2. Setup Bun Environment
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Install Dependencies
+      - name: 3. Install Dependencies
         run: bun install --frozen-lockfile || bun install
 
-      - name: Build Application
+      - name: 4. TypeScript Type Safety Check
+        run: bun x tsc --noEmit
+
+      - name: 5. Run Automated Unit & Integration Tests
+        run: bun test
+
+      - name: 6. Build Production Artifacts
         run: bun run build
 
-      - name: Deploy to Cloudflare Pages
+      - name: 7. Deploy to Cloudflare Pages (Production)
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

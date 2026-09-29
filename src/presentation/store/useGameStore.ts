@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BetOption } from '../../domain/entities/Bet';
+import { GAME_RULES } from '../../domain/constants/GameRules';
 import { PlayerStats, StreakTracker } from '../../domain/services/StreakTracker';
 import { PlaceBetAndRollUseCase } from '../../application/usecases/PlaceBetAndRoll';
 import { ClaimEmergencyBailoutUseCase } from '../../application/usecases/ClaimEmergencyBailout';
@@ -105,19 +106,19 @@ export function useGameEngine() {
   useEffect(() => {
     const timer = setInterval(() => {
       setBailoutTimer((prev) => {
-        if (prev <= 1) {
+        if (prev === 1) {
           syncState();
           return 0;
         }
-        return prev - 1;
+        return prev > 1 ? prev - 1 : 0;
       });
 
       setDailyTimer((prev) => {
-        if (prev <= 1) {
+        if (prev === 1) {
           syncState();
           return 0;
         }
-        return prev - 1;
+        return prev > 1 ? prev - 1 : 0;
       });
     }, 1000);
 
@@ -215,7 +216,7 @@ export function useGameEngine() {
 
         // ตรวจสอบสิทธิ์ bailout
         syncState();
-      }, 1100);
+      }, GAME_RULES.ROLL_ANIMATION_DELAY_MS);
     } catch (err: unknown) {
       setIsRolling(false);
       const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเล่น';

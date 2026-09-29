@@ -72,7 +72,14 @@ bun run deploy:cf
 
 ---
 
-## 📑 เอกสารการวิเคราะห์และออกแบบ (Documentation)
-- 📄 [01-requirements.md](docs/01-requirements.md) — วิเคราะห์ Requirement (Skill 01)
-- 📄 [02-system-design.md](docs/02-system-design.md) — สถาปัตยกรรมระบบ System Design (Skill 02)
-- 📄 [03-software-architecture.md](docs/03-software-architecture.md) — รายละเอียด Clean Architecture (Skill 03)
+## 📑 เอกสารการวิเคราะห์ ออกแบบ และกระบวนการวิศวกรรม (Complete 10-Skill Pipeline)
+- 📄 [01-requirements.md](docs/01-requirements.md) — วิเคราะห์ Requirement (Skill 01: Requirements Engineering)
+- 📄 [02-system-design.md](docs/02-system-design.md) — สถาปัตยกรรมระบบ System Design (Skill 02: System Design)
+- 📄 [03-software-architecture.md](docs/03-software-architecture.md) — รายละเอียด Clean Architecture (Skill 03: Software Architecture)
+- 📄 [04-database-design.md](docs/04-database-design.md) — การออกแบบ Database Schema, D1, Ledger & ERD (Skill 04: Database Design)
+- 📄 [05-api-design.md](docs/05-api-design.md) — การออกแบบ RESTful API, Idempotency & OpenAPI (Skill 05: API Design)
+- 📄 [06-code-quality.md](docs/06-code-quality.md) — ผลการทบทวนคุณภาพโค้ด และแผนการปรับปรุง (Skill 06: Code Quality)
+- 📄 [07-testing-qa.md](docs/07-testing-qa.md) — กลยุทธ์การทดสอบ, Test Matrix & Quality Gates (Skill 07: Testing & QA)
+- 📄 [08-debugging-refactoring.md](docs/08-debugging-refactoring.md) — การสืบสวนและแก้ไขจุดบกพร่อง (Skill 08: Debugging & Refactoring)
+- 📄 [09-owasp-security.md](docs/09-owasp-security.md) — การตรวจสอบและเสริมความปลอดภัยตามมาตรฐาน OWASP (Skill 09: OWASP Security)
+- 📄 [10-devops-cicd.md](docs/10-devops-cicd.md) — ไปป์ไลน์ CI/CD, Multi-stage Docker & Auto-Deploy (Skill 10: DevOps & CI/CD)

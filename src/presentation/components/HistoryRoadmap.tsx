@@ -43,7 +43,7 @@ export const HistoryRoadmap: React.FC<HistoryRoadmapProps> = ({ roadmap }) => {
                   }`}
                   title={`แต้ม ${item.dice.join('+')} = ${item.sum} (${item.category})`}
                 >
-                  {isTriple ? 'ต' : isHigh ? 'ส' : 'ต'}
+                  {isTriple ? 'ตง' : isHigh ? 'ส' : 'ต'}
                 </div>
                 <span className="text-[10px] text-slate-400 font-semibold mt-0.5">
                   {item.sum}

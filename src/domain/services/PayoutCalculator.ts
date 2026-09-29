@@ -1,5 +1,6 @@
 import { Bet } from '../entities/Bet';
 import { DiceHand } from '../entities/DiceHand';
+import { GAME_RULES } from '../constants/GameRules';
 
 export interface PayoutEvaluation {
   won: boolean;
@@ -10,8 +11,8 @@ export interface PayoutEvaluation {
 }
 
 export class PayoutCalculator {
-  public static readonly HIGH_LOW_MULTIPLIER = 1; // 1:1
-  public static readonly TRIPLE_MULTIPLIER = 30;  // 30:1
+  public static readonly HIGH_LOW_MULTIPLIER = GAME_RULES.PAYOUT_MULTIPLIER_HIGH_LOW;
+  public static readonly TRIPLE_MULTIPLIER = GAME_RULES.PAYOUT_MULTIPLIER_TRIPLE;
 
   public static evaluate(bet: Bet, hand: DiceHand): PayoutEvaluation {
     // กรณีที่ 1: ลูกเต๋าออกตอง (Triple)

@@ -1,3 +1,5 @@
+import { GAME_RULES } from '../constants/GameRules';
+
 export type BetOption = 'HIGH' | 'LOW' | 'TRIPLE';
 
 export interface ValidationResult {
@@ -6,8 +8,8 @@ export interface ValidationResult {
 }
 
 export class Bet {
-  public static readonly MIN_BET = 10;
-  public static readonly MAX_BET = 500;
+  public static readonly MIN_BET = GAME_RULES.MIN_BET;
+  public static readonly MAX_BET = GAME_RULES.MAX_BET;
 
   constructor(
     public readonly option: BetOption,

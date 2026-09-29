@@ -1,18 +1,26 @@
 import { IRandomGenerator } from '../../domain/ports/IRandomGenerator';
 
 export class WebCryptoRNG implements IRandomGenerator {
+  // ค่าตัวคูณสูงสุดของ 6 ภายในช่วง 32-บิต เพื่อทำ Rejection Sampling กำจัด Modulo Bias:
+  // 4294967296 - (4294967296 % 6) = 4294967292
+  private static readonly MAX_UNBIASED_LIMIT = 4294967292;
+
   public rollSingleDie(): number {
-    // ใช้งาน Web Cryptography API (CSPRNG) ที่เป็นมาตรฐานสากล ทั้งบน Browser, Bun, Node และ Cloudflare
-    const array = new Uint32Array(1);
     const cryptoObj = typeof window !== 'undefined' ? window.crypto : globalThis.crypto;
 
     if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
-      cryptoObj.getRandomValues(array);
-      const randomFraction = array[0] / (0xffffffff + 1);
-      return Math.floor(randomFraction * 6) + 1;
+      const array = new Uint32Array(1);
+      while (true) {
+        cryptoObj.getRandomValues(array);
+        const val = array[0];
+        // กำจัดค่าตกค้าง 4 ค่า เพื่อความน่าจะเป็นสมบูรณ์แบบ 1/6 ทุกหน้า (Zero Bias)
+        if (val < WebCryptoRNG.MAX_UNBIASED_LIMIT) {
+          return (val % 6) + 1;
+        }
+      }
     }
 
-    // Fallback ปลอดภัย
+    // Fallback เมื่อรันในสภาพแวดล้อมจำกัด
     return Math.floor(Math.random() * 6) + 1;
   }
 

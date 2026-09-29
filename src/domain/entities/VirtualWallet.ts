@@ -1,3 +1,5 @@
+import { GAME_RULES } from '../constants/GameRules';
+
 export interface WalletState {
   walletId: string;
   balance: number;
@@ -6,11 +8,12 @@ export interface WalletState {
 }
 
 export class VirtualWallet {
-  public static readonly INITIAL_BALANCE = 1000;
-  public static readonly BAILOUT_AMOUNT = 200;
-  public static readonly BAILOUT_COOLDOWN_MS = 60 * 1000; // 60 วินาที
-  public static readonly DAILY_REWARD_AMOUNT = 500;
-  public static readonly DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 ชั่วโมง
+  public static readonly INITIAL_BALANCE = GAME_RULES.INITIAL_BALANCE;
+  public static readonly BAILOUT_AMOUNT = GAME_RULES.BAILOUT_AMOUNT;
+  public static readonly BAILOUT_THRESHOLD = GAME_RULES.BAILOUT_THRESHOLD;
+  public static readonly BAILOUT_COOLDOWN_MS = GAME_RULES.BAILOUT_COOLDOWN_MS;
+  public static readonly DAILY_REWARD_AMOUNT = GAME_RULES.DAILY_REWARD_AMOUNT;
+  public static readonly DAILY_COOLDOWN_MS = GAME_RULES.DAILY_COOLDOWN_MS;
 
   private _balance: number;
   private _lastBailoutAt: number;
@@ -62,7 +65,7 @@ export class VirtualWallet {
    * ปลดล็อกเมื่อชิป < 10 และผ่าน Cooldown 60 วินาทีแล้ว
    */
   public canClaimBailout(now: number = Date.now()): { eligible: boolean; remainingSeconds: number } {
-    if (this._balance >= 10) {
+    if (this._balance >= VirtualWallet.BAILOUT_THRESHOLD) {
       return { eligible: false, remainingSeconds: 0 };
     }
     const elapsed = now - this._lastBailoutAt;
