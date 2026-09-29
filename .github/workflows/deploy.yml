@@ -36,10 +36,10 @@ jobs:
       - name: 6. Build Production Artifacts
         run: bun run build
 
-      - name: 7. Deploy to Cloudflare Pages (Production)
+      - name: 7. Deploy to Cloudflare (Production)
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=mini-casino-game
+          command: deploy
