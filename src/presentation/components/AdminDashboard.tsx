@@ -71,7 +71,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const uList = await adminService.getAllUsers();
+      const uList = await adminService.getAllUsers(currentUser);
       const logs = adminService.getAuditLogs();
       setUsers(uList);
       setAuditLogs(logs);
@@ -81,7 +81,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     loadDashboardData();
@@ -227,6 +227,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       loadDashboardData();
     }
   };
+
+  const handleRoleChange = async (targetUser: ManagedUser, newRole: 'creator' | 'admin' | 'player') => {
+    if (!isCreator) return;
+    setActionBusy(true);
+    try {
+      await adminService.changeUserRole(targetUser.id, targetUser.email, newRole, currentUser);
+      showNotice('success', `ปรับระดับสิทธิ์ของ "${targetUser.name}" เป็น ${newRole.toUpperCase()} เรียบร้อยแล้ว`);
+      await loadDashboardData();
+    } catch (e) {
+      showNotice('error', e instanceof Error ? e.message : 'เปลี่ยนระดับสิทธิ์ไม่สำเร็จ');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
@@ -519,7 +534,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                           {/* Role */}
                           <td className="py-3.5 px-4">
-                            {u.role === 'creator' ? (
+                            {isCreator && u.id !== currentUser.id ? (
+                              <select
+                                value={u.role}
+                                onChange={(e) =>
+                                  handleRoleChange(u, e.target.value as 'creator' | 'admin' | 'player')
+                                }
+                                disabled={actionBusy}
+                                className={`py-1 px-2 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer focus:outline-none ${
+                                  u.role === 'creator'
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                    : u.role === 'admin'
+                                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                                }`}
+                                title="คลิกเพื่อสลับระดับสิทธิ์ของผู้ใช้นี้"
+                              >
+                                <option value="creator" className="bg-slate-900 text-amber-300">
+                                  👑 ผู้สร้าง (Admin++)
+                                </option>
+                                <option value="admin" className="bg-slate-900 text-purple-300">
+                                  ⚡ แอดมิน (Admin)
+                                </option>
+                                <option value="player" className="bg-slate-900 text-slate-300">
+                                  👤 ผู้เล่น (Player)
+                                </option>
+                              </select>
+                            ) : u.role === 'creator' ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                                 <Crown className="w-3 h-3 text-amber-300" /> ผู้สร้าง (Admin++)
                               </span>

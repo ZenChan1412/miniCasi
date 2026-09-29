@@ -1,7 +1,8 @@
 import { UserProfile } from '../../domain/entities/User';
 import { IAuthService } from '../../domain/ports/IAuthService';
 import { decodeGoogleJwt } from './jwtDecoder';
-import { resolveRole } from '../../domain/constants/AdminConfig';
+import { resolveRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
+import { adminService } from '../../application/services/AdminService';
 
 export class GoogleAuthService implements IAuthService {
   private static readonly STORAGE_KEY = 'high_low_auth_user_v1';
@@ -45,6 +46,8 @@ export class GoogleAuthService implements IAuthService {
           parsed.role = resolveRole(parsed.email);
         }
         this.currentUser = parsed;
+        this.persistUser(parsed);
+        adminService.registerUser(parsed);
       }
     } catch (e) {
       console.error('โหลดข้อมูลผู้ใช้จาก LocalStorage ล้มเหลว:', e);
@@ -92,6 +95,7 @@ export class GoogleAuthService implements IAuthService {
 
     this.currentUser = user;
     this.persistUser(user);
+    adminService.registerUser(user);
     this.notifyListeners();
     return user;
   }
@@ -112,8 +116,20 @@ export class GoogleAuthService implements IAuthService {
 
     this.currentUser = user;
     this.persistUser(user);
+    adminService.registerUser(user);
     this.notifyListeners();
     return user;
+  }
+
+  public updateCurrentUserRole(role: 'creator' | 'admin' | 'player'): void {
+    if (!this.currentUser) return;
+    if (this.currentUser.email) {
+      setUserRoleOverride(this.currentUser.email, role);
+    }
+    this.currentUser.role = role;
+    this.persistUser(this.currentUser);
+    adminService.registerUser(this.currentUser);
+    this.notifyListeners();
   }
 
   public async logout(): Promise<void> {

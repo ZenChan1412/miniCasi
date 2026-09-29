@@ -1,7 +1,7 @@
 import { ManagedUser } from '../../domain/entities/ManagedUser';
 import { AuditRecord, AuditAction } from '../../domain/entities/AuditLog';
 import { UserProfile } from '../../domain/entities/User';
-import { resolveRole } from '../../domain/constants/AdminConfig';
+import { resolveRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
 import { LocalStorageWalletRepo } from '../../infrastructure/storage/LocalStorageWalletRepo';
 import { LocalStorageHistoryRepo } from '../../infrastructure/storage/LocalStorageHistoryRepo';
 import { VirtualWallet } from '../../domain/entities/VirtualWallet';
@@ -37,7 +37,7 @@ export class AdminService {
         email: user.email,
         picture: user.picture,
         provider: user.provider,
-        role: user.role || resolveRole(user.email),
+        role: resolveRole(user.email),
         lastActiveAt: Date.now(),
         createdAt: existing.createdAt || Date.now(),
       };
@@ -69,9 +69,30 @@ export class AdminService {
   /**
    * ดึงรายชื่อผู้ใช้ทั้งหมดในระบบ พร้อมยอดชิปสดและสถิติ
    */
-  public async getAllUsers(): Promise<ManagedUser[]> {
+  public async getAllUsers(currentUser?: UserProfile | null): Promise<ManagedUser[]> {
     const ls = this.getStorage();
     const usersMap = new Map<string, ManagedUser>();
+
+    // 0. บันทึกและดึงข้อมูลของ currentUser ก่อนเสมอ
+    if (currentUser) {
+      this.registerUser(currentUser);
+      usersMap.set(currentUser.id, {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        picture: currentUser.picture,
+        provider: currentUser.provider,
+        role: resolveRole(currentUser.email),
+        isBanned: this.isUserBanned(currentUser.id),
+        balance: 1000,
+        totalRounds: 0,
+        winRate: 0,
+        biggestWin: 0,
+        currentStreak: 0,
+        lastActiveAt: Date.now(),
+        createdAt: Date.now(),
+      });
+    }
 
     // 1. อ่านจาก User Registry ที่บันทึกไว้
     if (ls) {
@@ -80,13 +101,16 @@ export class AdminService {
         if (raw) {
           const registry: Record<string, Partial<ManagedUser>> = JSON.parse(raw);
           for (const [id, u] of Object.entries(registry)) {
+            // ไม่เขียนทับ currentUser ที่สดกว่า
+            if (currentUser && id === currentUser.id) continue;
+
             usersMap.set(id, {
               id,
               name: u.name || id,
               email: u.email,
               picture: u.picture,
               provider: u.provider || 'google',
-              role: u.role || resolveRole(u.email),
+              role: resolveRole(u.email),
               isBanned: this.isUserBanned(id),
               balance: 1000,
               totalRounds: 0,
@@ -115,23 +139,25 @@ export class AdminService {
             uId = key.replace('high_low_wallet_v2_user_', '');
           }
 
-          if (!usersMap.has(uId)) {
-            const isGuest = uId === 'guest';
-            usersMap.set(uId, {
-              id: uId,
-              name: isGuest ? 'ผู้เล่นทั่วไป (Guest)' : `ผู้ใช้ ${uId.substring(0, 10)}`,
-              role: resolveRole(null),
-              isBanned: this.isUserBanned(uId),
-              balance: 1000,
-              totalRounds: 0,
-              winRate: 0,
-              biggestWin: 0,
-              currentStreak: 0,
-              lastActiveAt: Date.now(),
-              createdAt: Date.now(),
-              provider: isGuest ? 'guest' : 'google',
-            });
+          if (usersMap.has(uId)) {
+            continue;
           }
+
+          const isGuest = uId === 'guest';
+          usersMap.set(uId, {
+            id: uId,
+            name: isGuest ? 'ผู้เล่นทั่วไป (Guest)' : `ผู้ใช้ ${uId.substring(0, 10)}`,
+            role: 'player',
+            isBanned: this.isUserBanned(uId),
+            balance: 1000,
+            totalRounds: 0,
+            winRate: 0,
+            biggestWin: 0,
+            currentStreak: 0,
+            lastActiveAt: Date.now(),
+            createdAt: Date.now(),
+            provider: isGuest ? 'guest' : 'google',
+          });
         }
       }
 
@@ -165,7 +191,8 @@ export class AdminService {
     }
 
     // 3. เพิ่ม Default Super Users หากยังไม่มีในระบบ เพื่อให้เห็นบน Dashboard เสมอ
-    if (!usersMap.has('google_creator_songpon')) {
+    const hasCreator = Array.from(usersMap.values()).some((u) => u.role === 'creator');
+    if (!hasCreator && !usersMap.has('google_creator_songpon')) {
       usersMap.set('google_creator_songpon', {
         id: 'google_creator_songpon',
         name: 'Songpon (Creator)',
@@ -183,7 +210,8 @@ export class AdminService {
       });
     }
 
-    if (!usersMap.has('google_admin_seree')) {
+    const hasAdmin = Array.from(usersMap.values()).some((u) => u.role === 'admin');
+    if (!hasAdmin && !usersMap.has('google_admin_seree')) {
       usersMap.set('google_admin_seree', {
         id: 'google_admin_seree',
         name: 'Seree (Admin)',
@@ -217,7 +245,15 @@ export class AdminService {
         user.biggestWin = stats.biggestWin;
         user.currentStreak = stats.currentStreak;
         user.isBanned = this.isUserBanned(id);
-        user.role = resolveRole(user.email);
+
+        if (currentUser && (id === currentUser.id || (currentUser.email && user.email === currentUser.email))) {
+          user.role = resolveRole(currentUser.email);
+          user.name = currentUser.name;
+          user.email = currentUser.email;
+          if (currentUser.picture) user.picture = currentUser.picture;
+        } else {
+          user.role = resolveRole(user.email);
+        }
       } catch (err) {
         console.warn(`Could not sync live wallet for ${id}:`, err);
       }
@@ -357,6 +393,54 @@ export class AdminService {
     } catch (e) {
       console.error('Failed to unban user:', e);
     }
+  }
+
+  /**
+   * เปลี่ยนระดับสิทธิ์ของผู้ใช้ (Creator / Admin / Player) — สิทธิ์เฉพาะ Creator (Admin++)
+   */
+  public async changeUserRole(
+    targetUserId: string,
+    targetEmail: string | undefined,
+    newRole: 'creator' | 'admin' | 'player',
+    actor: UserProfile
+  ): Promise<void> {
+    if (actor.role !== 'creator') {
+      throw new Error('เฉพาะผู้สร้าง (Creator / Admin++) เท่านั้นที่มีสิทธิ์เปลี่ยนระดับผู้ใช้');
+    }
+
+    if (targetEmail) {
+      setUserRoleOverride(targetEmail, newRole);
+    }
+
+    const ls = this.getStorage();
+    if (ls) {
+      try {
+        const raw = ls.getItem(AdminService.REGISTRY_KEY);
+        const registry: Record<string, Partial<ManagedUser>> = raw ? JSON.parse(raw) : {};
+        const existing = registry[targetUserId] || {};
+        registry[targetUserId] = {
+          ...existing,
+          id: targetUserId,
+          name: existing.name || targetEmail || targetUserId,
+          email: targetEmail || existing.email,
+          role: newRole,
+          lastActiveAt: Date.now(),
+          createdAt: existing.createdAt || Date.now(),
+        };
+        ls.setItem(AdminService.REGISTRY_KEY, JSON.stringify(registry));
+      } catch (e) {
+        console.error('Failed to update user role in registry:', e);
+      }
+    }
+
+    this.addAuditLog({
+      actorEmail: actor.email,
+      actorRole: actor.role || 'creator',
+      action: newRole === 'player' ? 'ROLE_DEMOTE' : 'ROLE_PROMOTE',
+      targetUserId,
+      targetName: targetEmail || targetUserId,
+      detail: `เปลี่ยนระดับสิทธิ์ของ ${targetEmail || targetUserId} เป็น ${newRole.toUpperCase()} โดย ${actor.email || actor.name}`,
+    });
   }
 
   /**

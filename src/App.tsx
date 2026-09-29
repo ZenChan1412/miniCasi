@@ -14,7 +14,7 @@ import { AdminPanel } from './presentation/components/AdminPanel';
 import { AdminDashboard } from './presentation/components/AdminDashboard';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
 import { hasAdminAccess } from './domain/constants/AdminConfig';
-import { Trophy, Percent, Flame, Sparkles } from 'lucide-react';
+import { Trophy, Percent, Flame, Sparkles, ShieldCheck } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Authentication Engine
@@ -35,7 +35,13 @@ export const App: React.FC = () => {
   const isAdmin = hasAdminAccess(user?.role);
   const isCreator = user?.role === 'creator';
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [view, setView] = useState<'game' | 'dashboard'>('game');
+  const [view, setView] = useState<'game' | 'dashboard'>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#dashboard' || hash === '#admin') return 'dashboard';
+    }
+    return 'game';
+  });
 
   // Game Engine (scoped by user.id if logged in, or guest if not)
   const {
@@ -83,10 +89,8 @@ export const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.toLowerCase();
       if (hash === '#dashboard' || hash === '#admin') {
-        if (isAdmin || isCreator) {
-          setView('dashboard');
-        } else if (!user) {
-          // ถ้ายังไม่ได้ล็อกอินและพยายามเข้า #admin หรือ #dashboard ให้เปิดหน้าต่างล็อกอินทันที
+        setView('dashboard');
+        if (!user) {
           setShowConfigModal(true);
         }
       } else if (hash === '#game' || hash === '' || hash === '#') {
@@ -97,7 +101,7 @@ export const App: React.FC = () => {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [isAdmin, isCreator, user, setShowConfigModal]);
+  }, [user, setShowConfigModal]);
 
   // Desktop Keyboard Shortcut: Press Spacebar to Roll
   useEffect(() => {
@@ -116,28 +120,83 @@ export const App: React.FC = () => {
   }, [isRolling, betOption, balance, betAmount, rollDice]);
 
   // Dedicated Full-Page Admin / Creator Dashboard View
-  if (view === 'dashboard' && (isAdmin || isCreator)) {
-    return (
-      <AdminDashboard
-        currentUser={
-          user || {
-            id: isCreator ? 'creator_demo' : 'admin_demo',
-            name: isCreator ? 'Songpon (Creator)' : 'Seree (Admin)',
-            email: isCreator ? 'songpon.official@gmail.com' : 'seree999@gmail.com',
-            provider: 'google',
-            role: isCreator ? 'creator' : 'admin',
-            loggedInAt: Date.now(),
+  if (view === 'dashboard') {
+    if (isAdmin || isCreator) {
+      return (
+        <AdminDashboard
+          currentUser={
+            user || {
+              id: isCreator ? 'creator_demo' : 'admin_demo',
+              name: isCreator ? 'Songpon (Creator)' : 'Seree (Admin)',
+              email: isCreator ? 'songpon.official@gmail.com' : 'seree999@gmail.com',
+              provider: 'google',
+              role: isCreator ? 'creator' : 'admin',
+              loggedInAt: Date.now(),
+            }
           }
-        }
-        isCreator={isCreator}
-        onReturnToGame={() => {
-          setView('game');
-          window.location.hash = '';
-        }}
-        onRefreshWallet={() => {
-          syncState();
-        }}
-      />
+          isCreator={isCreator}
+          onReturnToGame={() => {
+            setView('game');
+            window.location.hash = '';
+          }}
+          onRefreshWallet={() => {
+            syncState();
+          }}
+        />
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center space-y-6 selection:bg-amber-500 selection:text-slate-950">
+        <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto shadow-2xl">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <div className="space-y-2 max-w-md">
+          <h1 className="text-xl font-black text-white">ต้องการสิทธิ์ผู้ดูแลระบบ (Admin / Creator)</h1>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            {user ? (
+              <>
+                คุณกำลังเข้าสู่ระบบด้วยบัญชี <span className="text-white font-mono">{user.email || user.name}</span> ซึ่งมีระดับสิทธิ์เป็น{' '}
+                <span className="text-amber-300 font-bold">ผู้เล่นทั่วไป (Player)</span> จึงไม่สามารถเข้าถึงหน้าแดชบอร์ดนี้ได้
+              </>
+            ) : (
+              <>กรุณาเข้าสู่ระบบด้วยบัญชี Google ของ Admin หรือ Creator เพื่อเข้าใช้งานแดชบอร์ด</>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setView('game');
+              window.location.hash = '';
+            }}
+            className="py-2.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer transition-colors"
+          >
+            กลับสู่หน้าเกม
+          </button>
+          {!user ? (
+            <button
+              type="button"
+              onClick={() => setShowConfigModal(true)}
+              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs cursor-pointer hover:brightness-110 transition-all shadow-lg shadow-amber-500/20"
+            >
+              เข้าสู่ระบบ
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                setShowConfigModal(true);
+              }}
+              className="py-2.5 px-5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 font-bold text-xs cursor-pointer transition-colors"
+            >
+              สลับบัญชี Google
+            </button>
+          )}
+        </div>
+      </div>
     );
   }
 

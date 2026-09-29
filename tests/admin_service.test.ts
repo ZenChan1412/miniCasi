@@ -109,4 +109,39 @@ describe('AdminService & User Management System (Admin++)', () => {
     removeDynamicAdminEmail(testAdmin);
     expect(getDynamicAdminEmails()).not.toContain(testAdmin);
   });
+
+  it('ควรระบุสิทธิ์ของ currentUser ได้อย่างถูกต้องใน getAllUsers แม้มีเฉพาะ wallet key ใน storage', async () => {
+    // จำลองกรณีที่ผู้ใช้ล็อกอินด้วย Google OAuth ID จริง
+    const realCreatorUser: UserProfile = {
+      id: 'google_111352458428135836838',
+      name: 'Songpon Real',
+      email: 'songpon.official@gmail.com',
+      provider: 'google',
+      role: 'creator',
+      loggedInAt: Date.now(),
+    };
+
+    // เติมชิปผ่านระบบจริง เพื่อให้มี checksum ถูกต้อง
+    await adminService.grantChips(realCreatorUser.id, 4000, creatorActor);
+
+    const users = await adminService.getAllUsers(realCreatorUser);
+    const found = users.find((u) => u.id === realCreatorUser.id);
+
+    expect(found).toBeDefined();
+    expect(found?.email).toBe('songpon.official@gmail.com');
+    expect(found?.role).toBe('creator'); // ต้องไม่เป็น 'player'
+    expect(found?.balance).toBe(5000);
+  });
+
+  it('ควรเปลี่ยนระดับสิทธิ์ของผู้ใช้ผ่าน changeUserRole ได้สำเร็จ', async () => {
+    const targetUserId = 'target_player_1';
+    const targetEmail = 'target@gmail.com';
+
+    await adminService.changeUserRole(targetUserId, targetEmail, 'admin', creatorActor);
+
+    const users = await adminService.getAllUsers();
+    const target = users.find((u) => u.id === targetUserId || u.email === targetEmail);
+    expect(target?.role).toBe('admin');
+  });
 });
+

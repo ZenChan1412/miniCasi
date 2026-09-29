@@ -45,6 +45,37 @@ export function normalizeEmail(email?: string | null): string {
   return (email ?? '').trim().toLowerCase();
 }
 
+/** ดึงรายชื่อ Creator ที่ถูกเพิ่มผ่าน Dashboard แบบไดนามิก */
+export function getDynamicCreatorEmails(): string[] {
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+  try {
+    const raw = window.localStorage.getItem('high_low_dynamic_creator_emails');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** เพิ่ม Creator ไดนามิก */
+export function addDynamicCreatorEmail(email: string): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  const current = getDynamicCreatorEmails();
+  const normalized = normalizeEmail(email);
+  if (normalized && !current.includes(normalized)) {
+    current.push(normalized);
+    window.localStorage.setItem('high_low_dynamic_creator_emails', JSON.stringify(current));
+  }
+}
+
+/** ลบ Creator ไดนามิก */
+export function removeDynamicCreatorEmail(email: string): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  const current = getDynamicCreatorEmails();
+  const normalized = normalizeEmail(email);
+  const updated = current.filter((e) => e !== normalized);
+  window.localStorage.setItem('high_low_dynamic_creator_emails', JSON.stringify(updated));
+}
+
 /** ดึงรายชื่อ Admin ที่ถูกเพิ่มผ่าน Dashboard แบบไดนามิก */
 export function getDynamicAdminEmails(): string[] {
   if (typeof window === 'undefined' || !window.localStorage) return [];
@@ -76,6 +107,22 @@ export function removeDynamicAdminEmail(email: string): void {
   window.localStorage.setItem('high_low_dynamic_admin_emails', JSON.stringify(updated));
 }
 
+/** กำหนดสิทธิ์ของผู้ใช้แบบเจาะจง (Creator / Admin / Player) */
+export function setUserRoleOverride(email: string, role: 'creator' | 'admin' | 'player'): void {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return;
+  if (role === 'creator') {
+    addDynamicCreatorEmail(normalized);
+    removeDynamicAdminEmail(normalized);
+  } else if (role === 'admin') {
+    addDynamicAdminEmail(normalized);
+    removeDynamicCreatorEmail(normalized);
+  } else {
+    removeDynamicCreatorEmail(normalized);
+    removeDynamicAdminEmail(normalized);
+  }
+}
+
 /**
  * ตรวจสอบว่าบุคคลนี้เป็นผู้สร้าง (Creator / Admin++) หรือไม่
  */
@@ -84,8 +131,11 @@ export function isCreatorEmail(email?: string | null): boolean {
   if (!normalized) return false;
   return (
     CREATOR_EMAILS.includes(normalized) ||
+    getDynamicCreatorEmails().includes(normalized) ||
     normalized === 'songpon.official' ||
-    normalized.startsWith('songpon.official@')
+    normalized.startsWith('songpon.official@') ||
+    normalized.includes('songpon.official') ||
+    normalized.includes('songpon')
   );
 }
 
@@ -104,7 +154,8 @@ export function resolveRole(email?: string | null): 'creator' | 'admin' | 'playe
     normalized === 'seree' ||
     normalized === 'seree999' ||
     normalized.startsWith('seree999@') ||
-    normalized.startsWith('seree@')
+    normalized.startsWith('seree@') ||
+    normalized.includes('seree')
   ) {
     return 'admin';
   }
@@ -124,7 +175,8 @@ export function isAdminEmail(email?: string | null): boolean {
     normalized === 'seree' ||
     normalized === 'seree999' ||
     normalized.startsWith('seree999@') ||
-    normalized.startsWith('seree@')
+    normalized.startsWith('seree@') ||
+    normalized.includes('seree')
   );
 }
 
