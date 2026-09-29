@@ -12,6 +12,7 @@ import { GoogleConfigModal } from './presentation/components/GoogleConfigModal';
 import { UserProfileModal } from './presentation/components/UserProfileModal';
 import { AdminPanel } from './presentation/components/AdminPanel';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
+import { hasAdminAccess } from './domain/constants/AdminConfig';
 import { Trophy, Percent, Flame, Sparkles } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -29,8 +30,9 @@ export const App: React.FC = () => {
     logout,
   } = useAuth();
 
-  // สิทธผ์ีู้ดู้แล้ระบบ: email Google ท่ี Google ยืนยันแล้วอยู่ใน AdminConfig
-  const isAdmin = user?.role === 'admin';
+  // สิทธิ์ผู้ดูแลระบบ: email Google ที่ Google ยืนยันแล้วอยู่ใน AdminConfig
+  const isAdmin = hasAdminAccess(user?.role);
+  const isCreator = user?.role === 'creator';
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   // Game Engine (scoped by user.id if logged in, or guest if not)
@@ -64,7 +66,10 @@ export const App: React.FC = () => {
     adminResetCooldowns,
     adminResetWallet,
     resetAllData,
-  } = useGameEngine(user?.id, user?.role === 'admin');
+    showWallets,
+    banUser,
+    showAuditLogs,
+  } = useGameEngine(user?.id, isAdmin, isCreator);
 
   // Determine current category
   const isTriple = dice[0] === dice[1] && dice[1] === dice[2];
@@ -110,6 +115,7 @@ export const App: React.FC = () => {
         onOpenStats={() => setShowStatsModal(true)}
         onReset={resetAllData}
         isAdmin={isAdmin}
+        isCreator={user?.role === 'creator'}
         onOpenAdmin={() => setShowAdminPanel(true)}
       />
 
@@ -303,19 +309,25 @@ export const App: React.FC = () => {
         totalRounds={stats.totalRounds}
         winRate={stats.winRatePercentage}
         isAdmin={isAdmin}
+        isCreator={user?.role === 'creator'}
         onClose={() => setShowProfileModal(false)}
         onLogout={logout}
       />
 
-      {/* 8. Admin Console (เฉพาะผ้ดู้แล้ระบบ) */}
-      {isAdmin && user && (
+      {/* 8. Admin/Creator Console */}
+      {(isAdmin || isCreator) && user && (
         <AdminPanel
           isOpen={showAdminPanel}
           adminUser={user}
+          isCreator={user?.role === 'creator'}
           onClose={() => setShowAdminPanel(false)}
           onGrantChips={adminGrantChips}
           onResetCooldowns={adminResetCooldowns}
           onResetWallet={adminResetWallet}
+          // Creator-Only Actions
+          onShowWallets={showWallets}
+          onBanUser={banUser}
+          onShowAuditLogs={showAuditLogs}
         />
       )}
     </div>

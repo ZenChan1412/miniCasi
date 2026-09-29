@@ -5,7 +5,7 @@ import { LocalStorageWalletRepo } from '../src/infrastructure/storage/LocalStora
 import { LocalStorageHistoryRepo } from '../src/infrastructure/storage/LocalStorageHistoryRepo';
 import { VirtualWallet } from '../src/domain/entities/VirtualWallet';
 import { StreakTracker } from '../src/domain/services/StreakTracker';
-import { isAdminEmail, ADMIN_EMAILS } from '../src/domain/constants/AdminConfig';
+import { isAdminEmail, ADMIN_EMAILS, isCreatorEmail, CREATOR_EMAILS, resolveRole } from '../src/domain/constants/AdminConfig';
 import { ClaimEmergencyBailoutUseCase } from '../src/application/usecases/ClaimEmergencyBailout';
 import { ClaimDailyRewardUseCase } from '../src/application/usecases/ClaimDailyReward';
 
@@ -127,20 +127,43 @@ describe('GoogleAuthService Lifecycle', () => {
   });
 });
 
-describe('Admin Role Assignment (Email-Checked After Google Login)', () => {
-  it('seree999@gmail.com ต้องอยู่ในรายชื่่อผ้ดู้แล้ระบบ', () => {
+describe('Creator & Admin Role Assignment (Email-Checked After Google Login)', () => {
+  it('songpon.official@gmail.com ต้องอยู่ในรายชื่อผู้สร้าง (Creator)', () => {
+    expect(CREATOR_EMAILS).toContain('songpon.official@gmail.com');
+    expect(isCreatorEmail('songpon.official@gmail.com')).toBe(true);
+    expect(resolveRole('songpon.official@gmail.com')).toBe('creator');
+  });
+
+  it('seree999@gmail.com ต้องอยู่ในรายชื่อผู้ดูแลระบบ (Admin)', () => {
     expect(ADMIN_EMAILS).toContain('seree999@gmail.com');
     expect(isAdminEmail('seree999@gmail.com')).toBe(true);
+    expect(resolveRole('seree999@gmail.com')).toBe('admin');
   });
 
   it('ตรวจสอบ Email แบบ Case-insensitive และตัดช่องว่าง', () => {
     expect(isAdminEmail('  Seree999@Gmail.COM ')).toBe(true);
+    expect(isCreatorEmail('  Songpon.Official@gmail.com  ')).toBe(true);
     expect(isAdminEmail('other@gmail.com')).toBe(false);
     expect(isAdminEmail('')).toBe(false);
     expect(isAdminEmail(null)).toBe(false);
   });
 
-  it('Login ด้วย email ผ้ดู้แล้ระบบ ต้องได้ role = admin', async () => {
+  it('Login ด้วย email ผู้สร้าง ต้องได้ role = creator', async () => {
+    const authService = new GoogleAuthService();
+    const token = createTestJwt({
+      sub: 'google_creator_001',
+      email: 'songpon.official@gmail.com',
+      email_verified: true,
+      name: 'Songpon Creator',
+    });
+
+    const user = await authService.loginWithCredential(token);
+    expect(user.role).toBe('creator');
+    expect(authService.getCurrentUser()?.role).toBe('creator');
+    await authService.logout();
+  });
+
+  it('Login ด้วย email ผู้ดูแลระบบ ต้องได้ role = admin', async () => {
     const authService = new GoogleAuthService();
     const token = createTestJwt({
       sub: 'google_admin_001',

@@ -9,6 +9,9 @@ import { LocalStorageWalletRepo } from '../../infrastructure/storage/LocalStorag
 import { LocalStorageHistoryRepo } from '../../infrastructure/storage/LocalStorageHistoryRepo';
 import { WebCryptoRNG } from '../../infrastructure/rng/WebCryptoRNG';
 import { AdminGrantChipsUseCase } from '../../application/usecases/AdminGrantChips';
+import { ViewAllWalletsUseCase } from "../../application/usecases/ViewAllWallets";
+import { BanUserUseCase } from "../../application/usecases/BanUser";
+import { ViewAuditLogsUseCase, AuditEntry } from "../../application/usecases/ViewAuditLogs";
 import { soundFX } from '../../infrastructure/sound/SoundFX';
 import confetti from 'canvas-confetti';
 
@@ -37,7 +40,7 @@ export interface GameStoreState {
   showResultModal: boolean;
 }
 
-export function useGameEngine(userId?: string, isAdmin = false) {
+export function useGameEngine(userId?: string, isAdmin = false, isCreator = false) {
   const [balance, setBalance] = useState<number>(1000);
   const [betOption, setBetOption] = useState<BetOption | null>('HIGH');
   const [betAmount, setBetAmount] = useState<number>(50);
@@ -278,8 +281,8 @@ export function useGameEngine(userId?: string, isAdmin = false) {
   // Admin: เพิ่มชิปให้ผู้เล่น (เฉพาะ admin — role ตรวจสอบแล้วจาก GoogleAuthService)
   const adminGrantChips = useCallback(
     async (targetUserId: string, grantAmount: number) => {
-      if (!isAdmin) {
-        throw new Error('สิทธิ์นี้เฉพาะผู้ดูแลระบบเท่านั้น');
+      if (!isAdmin && !isCreator) {
+        throw new Error('สิทธิ์นี้เฉพาะผู้ดูแลระบบและผู้สร้างเท่านั้น');
       }
       const res = await adminGrantUseCase.execute(targetUserId, grantAmount);
       if (targetUserId === userId) {
@@ -329,6 +332,26 @@ export function useGameEngine(userId?: string, isAdmin = false) {
     }
   }, [walletRepo, historyRepo, userId, syncState]);
 
+
+  // Creator-Only Actions (View Wallets, Ban User, Audit Logs)
+  const showWallets = useCallback(async () => {
+    if (!isCreator) throw new Error('สิทธิ์เฉพาะผู้สร้างเท่านั้น');
+    const svc = new ViewAllWalletsUseCase(walletRepo);
+    return await svc.execute();
+  }, [walletRepo, isCreator]);
+
+  const banUser = useCallback(async (targetUserId: string) => {
+    if (!isCreator) throw new Error('สิทธิ์เฉพาะผู้สร้างเท่านั้น');
+    const svc = new BanUserUseCase(walletRepo);
+    await svc.execute(targetUserId);
+  }, [walletRepo, isCreator]);
+
+  const showAuditLogs = useCallback(async () => {
+    if (!isCreator) throw new Error('สิทธิ์เฉพาะผู้สร้างเท่านั้น');
+    const svc = new ViewAuditLogsUseCase(historyRepo, walletRepo);
+    return await svc.execute();
+  }, [historyRepo, walletRepo, isCreator]);
+
   return {
     balance,
     betOption,
@@ -359,5 +382,8 @@ export function useGameEngine(userId?: string, isAdmin = false) {
     adminResetCooldowns,
     adminResetWallet,
     resetAllData,
+    showWallets,
+    banUser,
+    showAuditLogs,
   };
 }

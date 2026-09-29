@@ -9,6 +9,7 @@ interface UserProfileModalProps {
   totalRounds: number;
   winRate: number;
   isAdmin?: boolean;
+  isCreator?: boolean;
   onClose: () => void;
   onLogout: () => void;
 }
@@ -20,6 +21,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   totalRounds,
   winRate,
   isAdmin = false,
+  isCreator = false,
   onClose,
   onLogout,
 }) => {
@@ -71,9 +73,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               {user.provider === 'google' ? 'Google Account Connected' : 'Demo Profile'}
             </span>
-            {isAdmin && (
+            {isCreator && (
+              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                👑 ผู้สร้าง (Creator)
+              </span>
+            )}
+            {isAdmin && !isCreator && (
               <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                ⚡ ผ้ดู้แล้ระบบ (Admin)
+                ⚡ ผู้ดูแลระบบ (Admin)
               </span>
             )}
           </div>

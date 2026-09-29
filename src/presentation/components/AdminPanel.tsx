@@ -1,29 +1,38 @@
 import React, { useState } from 'react';
-import { ShieldCheck, X, Coins, Zap, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Crown, X, Coins, Zap, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { UserProfile } from '../../domain/entities/User';
 
 interface AdminPanelProps {
   isOpen: boolean;
   adminUser: UserProfile;
+  isCreator?: boolean;
   onClose: () => void;
   onGrantChips: (userId: string, amount: number) => Promise<{ grantedAmount: number; newBalance: number }>;
   onResetCooldowns: (userId: string) => Promise<void>;
   onResetWallet: (userId: string) => Promise<void>;
+  // Creator-Only
+  onShowWallets: () => Promise<{ id: string; balance: number; lastBailoutAt?: number; lastDailyClaimAt?: number }[]>;
+  onBanUser: (userId: string) => Promise<void>;
+  onShowAuditLogs: () => Promise<{ action: string; target?: string; detail?: string; time: string }[]>;
 }
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
 /**
- * Admin Console — แสดงเฉพาะเมื่อ user.role === 'admin'
+ * Admin/Creator Console — แสดงเฉพาะผู้มีสิทธิ์ระดับ admin ขึ้นไป
  * (ตรวจสอบแล้วที่ฝั่ง GoogleAuthService จาก email ใน AdminConfig)
  */
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen,
   adminUser,
+  isCreator = false,
   onClose,
   onGrantChips,
   onResetCooldowns,
   onResetWallet,
+  onShowWallets,
+  onBanUser,
+  onShowAuditLogs,
 }) => {
   const [targetUserId, setTargetUserId] = useState('');
   const [amount, setAmount] = useState(500);
@@ -68,6 +77,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setFeedback({ ok: true, text: `รีเซ็ตกระเป๋าชิปของ ${effectiveTarget} แล้ว (กลับเป็น 1,000)` });
     });
 
+  const handleViewAllWallets = () =>
+    run(async () => {
+      const wallets = await onShowWallets();
+      setFeedback({
+        ok: true,
+        text: `พบ ${wallets.length} กระเป๋า — กดดูรายละเอียดแต่ละใบ (ตัวอย่าง: ${wallets.slice(0, 3).map((w: { id: string }) => w.id).join(', ')})`,
+      });
+    });
+
+  const handleBanUser = () =>
+    run(async () => {
+      if (!effectiveTarget) {
+        setFeedback({ ok: false, text: 'กรุณาระบุ User ID ที่จะ ban' });
+        return;
+      }
+      await onBanUser(effectiveTarget);
+      setFeedback({ ok: true, text: `Ban แล้ว — ${effectiveTarget} ไม่สามารถเล่นได้อีก` });
+    });
+
+  const handleViewAudit = () =>
+    run(async () => {
+      const logs = await onShowAuditLogs();
+      setFeedback({
+        ok: true,
+        text: `Audit Log: ${logs.length} รายการ — กดดูรายละเอียด (ตัวอย่าง: ${logs.slice(0, 2).map((l: { action: string }) => l.action).join(', ')})`,
+      });
+    });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-md bg-slate-900 border border-purple-500/30 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
@@ -82,12 +119,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-300">
-            <ShieldCheck className="w-6 h-6" />
+          <div className={`p-2.5 rounded-2xl border ${
+            isCreator
+              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+              : 'bg-purple-500/15 border-purple-500/30 text-purple-300'
+          }`}>
+            {isCreator ? <Crown className="w-6 h-6" /> : <ShieldCheck className="w-6 h-6" />}
           </div>
           <div>
-            <h2 className="text-base font-bold text-white">Admin Console</h2>
-            <div className="text-[11px] text-purple-300/80">{adminUser.email}</div>
+            <h2 className="text-base font-bold text-white">
+              {isCreator ? 'Creator Console' : 'Admin Console'}
+            </h2>
+            <div className="text-[11px] text-slate-400">
+              {adminUser.email}
+              {isCreator ? ' · 👑 ผู้สร้าง เหนือกว่า Admin' : ' · ⚡ ผู้ดูแลระบบ'}
+            </div>
           </div>
         </div>
 
@@ -173,6 +219,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <span>รีเซ็ตกระเป๋า</span>
           </button>
         </div>
+
+        {/* Creator-Only Actions */}
+        {isCreator && (
+          <>
+            <div className="pt-1 border-t border-slate-700/50">
+              <p className="text-[10px] text-amber-400/70 uppercase tracking-wider font-semibold mb-2">
+              Creator Exclusive (ผู้สร้าง)
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleViewAllWallets}
+                className="py-2.5 px-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:border-amber-500/40 hover:text-amber-300 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                👁️ Wallets
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleBanUser}
+                className="py-2.5 px-2 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:bg-red-900/60 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                🚫 Ban
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleViewAudit}
+                className="py-2.5 px-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-300 font-bold text-[11px] flex items-center justify-center gap-1 hover:border-blue-500/40 hover:text-blue-300 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                📋 Audit
+              </button>
+            </div>
+          </div>
+          </>
+        )}
 
         {/* Feedback */}
         {feedback && (

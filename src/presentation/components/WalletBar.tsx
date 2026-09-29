@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coins, Volume2, VolumeX, Gift, LifeBuoy, BarChart3, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Coins, Volume2, VolumeX, Gift, LifeBuoy, BarChart3, RefreshCw, ShieldCheck, Crown } from 'lucide-react';
 import { UserProfile } from '../../domain/entities/User';
 import { GoogleAuthButton } from './GoogleAuthButton';
 
@@ -22,6 +22,7 @@ interface WalletBarProps {
   onOpenStats: () => void;
   onReset: () => void;
   isAdmin: boolean;
+  isCreator?: boolean;
   onOpenAdmin: () => void;
 }
 
@@ -44,6 +45,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
   onOpenStats,
   onReset,
   isAdmin,
+  isCreator = false,
   onOpenAdmin,
 }) => {
   const formatTime = (seconds: number): string => {
@@ -122,10 +124,14 @@ export const WalletBar: React.FC<WalletBarProps> = ({
               <button
                 type="button"
                 onClick={onOpenAdmin}
-                className="p-2 rounded-xl bg-purple-950/50 border border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50 transition-colors cursor-pointer"
-                title="Admin Console"
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  isCreator
+                    ? 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-900/50'
+                    : 'bg-purple-950/50 border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50'
+                }`}
+                title={isCreator ? 'Creator Console' : 'Admin Console'}
               >
-                <ShieldCheck className="w-4 h-4" />
+                {isCreator ? <Crown className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
               </button>
             )}
           </div>
@@ -139,7 +145,18 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             </div>
             <div>
               <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                {user ? `ยอดชิปบัญชี ${user.givenName || user.name}` : 'ยอดชิปจำลองคงเหลือ'}
+                {user ? (
+                  <span className="flex items-center gap-1.5">
+                    ยอดชิปบัญชี {user.givenName || user.name}
+                    {isCreator && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        👑 ผู้สร้าง
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  'ยอดชิปจำลองคงเหลือ'
+                )}
               </div>
               <div className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight flex items-baseline gap-1.5">
                 <span>{balance.toLocaleString()}</span>
@@ -226,10 +243,14 @@ export const WalletBar: React.FC<WalletBarProps> = ({
               <button
                 type="button"
                 onClick={onOpenAdmin}
-                className="p-2.5 rounded-xl bg-purple-950/50 border border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50 transition-colors cursor-pointer"
-                title="Admin Console"
+                className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                  isCreator
+                    ? 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-900/50'
+                    : 'bg-purple-950/50 border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50'
+                }`}
+                title={isCreator ? 'Creator Console' : 'Admin Console'}
               >
-                <ShieldCheck className="w-4 h-4" />
+                {isCreator ? <Crown className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
               </button>
             )}
           </div>

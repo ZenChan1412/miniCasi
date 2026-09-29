@@ -1,7 +1,7 @@
 import { UserProfile } from '../../domain/entities/User';
 import { IAuthService } from '../../domain/ports/IAuthService';
 import { decodeGoogleJwt } from './jwtDecoder';
-import { isAdminEmail } from '../../domain/constants/AdminConfig';
+import { resolveRole } from '../../domain/constants/AdminConfig';
 
 export class GoogleAuthService implements IAuthService {
   private static readonly STORAGE_KEY = 'high_low_auth_user_v1';
@@ -40,9 +40,9 @@ export class GoogleAuthService implements IAuthService {
       const dataStr = window.localStorage.getItem(GoogleAuthService.STORAGE_KEY);
       if (dataStr) {
         const parsed = JSON.parse(dataStr) as UserProfile;
-        // ตรวจสอบสิทธิ์ผู้ดูแลระบบทุกครั้งที่โหลด (กัน role เก่าค้างใน localStorage)
+        // ตรวจสอบสิทธิ์ทุกครั้งที่โหลด (กัน role เก่าค้างใน localStorage — creator > admin > player)
         if (parsed.email) {
-          parsed.role = isAdminEmail(parsed.email.trim().toLowerCase()) ? 'admin' : 'player';
+          parsed.role = resolveRole(parsed.email);
         }
         this.currentUser = parsed;
       }
@@ -74,7 +74,7 @@ export class GoogleAuthService implements IAuthService {
       throw new Error('โทเค็นการยืนยันตัวตนจาก Google ไม่ถูกต้อง');
     }
 
-    // ตรวจสอบสิทธผ์ีู้ดู้แล้ระบบโดย Email ท่ี Google ยืนยันแล้ว
+    // ตรวจสอบสิทธิ์โดย Email ที่ Google ยืนยันแล้ว (creator > admin > player)
     const email = (payload.email || '').trim().toLowerCase();
 
     const user: UserProfile = {
@@ -85,7 +85,7 @@ export class GoogleAuthService implements IAuthService {
       familyName: payload.family_name,
       picture: payload.picture,
       provider: 'google',
-      role: isAdminEmail(email) ? 'admin' : 'player',
+      role: resolveRole(email),
       idToken: credential,
       loggedInAt: Date.now(),
     };
@@ -106,7 +106,7 @@ export class GoogleAuthService implements IAuthService {
       givenName: mockData?.givenName || 'Google Player',
       picture: mockData?.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
       provider: 'mock',
-      role: isAdminEmail(email) ? 'admin' : 'player',
+      role: resolveRole(email),
       loggedInAt: Date.now(),
     };
 
