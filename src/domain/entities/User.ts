@@ -1,3 +1,5 @@
+export type UserRole = 'admin' | 'player';
+
 export interface UserProfile {
   id: string;             // Google sub or unique user ID
   email: string;          // User email address
@@ -6,6 +8,7 @@ export interface UserProfile {
   familyName?: string;    // Last name
   picture?: string;       // Avatar picture URL
   provider: 'google' | 'mock' | 'guest';
+  role?: UserRole;        // สิทธผ์ีู้ดู้แล้ระบบ (admin = ผ้ดู้แล้ระบบ, player = ผู้ใช้ปกติ)
   idToken?: string;
   loggedInAt: number;     // Timestamp in ms
 }

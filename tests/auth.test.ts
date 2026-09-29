@@ -5,6 +5,9 @@ import { LocalStorageWalletRepo } from '../src/infrastructure/storage/LocalStora
 import { LocalStorageHistoryRepo } from '../src/infrastructure/storage/LocalStorageHistoryRepo';
 import { VirtualWallet } from '../src/domain/entities/VirtualWallet';
 import { StreakTracker } from '../src/domain/services/StreakTracker';
+import { isAdminEmail, ADMIN_EMAILS } from '../src/domain/constants/AdminConfig';
+import { ClaimEmergencyBailoutUseCase } from '../src/application/usecases/ClaimEmergencyBailout';
+import { ClaimDailyRewardUseCase } from '../src/application/usecases/ClaimDailyReward';
 
 // Setup Mock In-Memory Storage for Bun CLI Environment
 const memoryStore = new Map<string, string>();
@@ -121,6 +124,88 @@ describe('GoogleAuthService Lifecycle', () => {
     expect(notifiedUser).toBeNull();
 
     unsubscribe();
+  });
+});
+
+describe('Admin Role Assignment (Email-Checked After Google Login)', () => {
+  it('seree999@gmail.com ต้องอยู่ในรายชื่่อผ้ดู้แล้ระบบ', () => {
+    expect(ADMIN_EMAILS).toContain('seree999@gmail.com');
+    expect(isAdminEmail('seree999@gmail.com')).toBe(true);
+  });
+
+  it('ตรวจสอบ Email แบบ Case-insensitive และตัดช่องว่าง', () => {
+    expect(isAdminEmail('  Seree999@Gmail.COM ')).toBe(true);
+    expect(isAdminEmail('other@gmail.com')).toBe(false);
+    expect(isAdminEmail('')).toBe(false);
+    expect(isAdminEmail(null)).toBe(false);
+  });
+
+  it('Login ด้วย email ผ้ดู้แล้ระบบ ต้องได้ role = admin', async () => {
+    const authService = new GoogleAuthService();
+    const token = createTestJwt({
+      sub: 'google_admin_001',
+      email: 'seree999@gmail.com',
+      email_verified: true,
+      name: 'Seree Admin',
+    });
+
+    const user = await authService.loginWithCredential(token);
+    expect(user.role).toBe('admin');
+    expect(authService.getCurrentUser()?.role).toBe('admin');
+    await authService.logout();
+  });
+
+  it('Login ด้วย email ธรรมดา ต้องได้ role = player', async () => {
+    const authService = new GoogleAuthService();
+    const token = createTestJwt({
+      sub: 'google_player_777',
+      email: 'randomplayer@gmail.com',
+      email_verified: true,
+      name: 'Random Player',
+    });
+
+    const user = await authService.loginWithCredential(token);
+    expect(user.role).toBe('player');
+    await authService.logout();
+  });
+
+  it('Admin ข้าม Cooldown Bailout 60 วิได้อกัีร (forceClaim)', async () => {
+    const walletRepo = new LocalStorageWalletRepo();
+    const useCase = new ClaimEmergencyBailoutUseCase(walletRepo);
+    const adminId = 'google_admin_test_bailout';
+
+    // ให้อกัีร 5 ชิป (ต่ำกว่า threshold 10)
+    const w = new VirtualWallet(adminId, 5);
+    await walletRepo.saveWallet(w, adminId);
+
+    // กด Bailout ครั้่งแรก สำเร็จ
+    const first = await useCase.execute(adminId, true);
+    expect(first.newBalance).toBe(205);
+
+    // กดอึกครั้่งในทันที — ผ้ใช้ปกติต้องถูกปัด (balance ≥ 10 ยังถูกปัดก่อน cooldown), Admin ผ่าน
+    const playerErr = await useCase.execute(adminId, false).catch((e: Error) => e.message);
+    expect(playerErr).toContain('ชิป');
+
+    const adminSecond = await useCase.execute(adminId, true);
+    expect(adminSecond.newBalance).toBe(405);
+  });
+
+  it('Admin ข้าม Cooldown Daily 24 ชม.ได้อกัีร (forceClaim)', async () => {
+    const walletRepo = new LocalStorageWalletRepo();
+    const useCase = new ClaimDailyRewardUseCase(walletRepo);
+    const adminId = 'google_admin_test_daily';
+
+    const w = new VirtualWallet(adminId, 100);
+    await walletRepo.saveWallet(w, adminId);
+
+    const first = await useCase.execute(adminId, true);
+    expect(first.newBalance).toBe(600);
+
+    const playerErr = await useCase.execute(adminId, false).catch((e: Error) => e.message);
+    expect(playerErr).toContain('ชั่วโมง');
+
+    const adminSecond = await useCase.execute(adminId, true);
+    expect(adminSecond.newBalance).toBe(1100);
   });
 });
 

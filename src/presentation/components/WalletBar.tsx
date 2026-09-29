@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coins, Volume2, VolumeX, Gift, LifeBuoy, BarChart3, RefreshCw } from 'lucide-react';
+import { Coins, Volume2, VolumeX, Gift, LifeBuoy, BarChart3, RefreshCw, ShieldCheck } from 'lucide-react';
 import { UserProfile } from '../../domain/entities/User';
 import { GoogleAuthButton } from './GoogleAuthButton';
 
@@ -21,6 +21,8 @@ interface WalletBarProps {
   onToggleSound: () => void;
   onOpenStats: () => void;
   onReset: () => void;
+  isAdmin: boolean;
+  onOpenAdmin: () => void;
 }
 
 export const WalletBar: React.FC<WalletBarProps> = ({
@@ -41,6 +43,8 @@ export const WalletBar: React.FC<WalletBarProps> = ({
   onToggleSound,
   onOpenStats,
   onReset,
+  isAdmin,
+  onOpenAdmin,
 }) => {
   const formatTime = (seconds: number): string => {
     if (seconds <= 0) return 'พร้อมกดรับ';
@@ -113,6 +117,17 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="p-2 rounded-xl bg-purple-950/50 border border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50 transition-colors cursor-pointer"
+                title="Admin Console"
+              >
+                <ShieldCheck className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -206,6 +221,17 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="p-2.5 rounded-xl bg-purple-950/50 border border-purple-500/40 text-purple-300 hover:text-purple-200 hover:bg-purple-900/50 transition-colors cursor-pointer"
+                title="Admin Console"
+              >
+                <ShieldCheck className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Desktop Google Auth Button */}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameEngine } from './presentation/store/useGameStore';
 import { useAuth } from './presentation/store/useAuthStore';
 import { WalletBar } from './presentation/components/WalletBar';
@@ -10,6 +10,7 @@ import { StatsModal } from './presentation/components/StatsModal';
 import { ResultModal } from './presentation/components/ResultModal';
 import { GoogleConfigModal } from './presentation/components/GoogleConfigModal';
 import { UserProfileModal } from './presentation/components/UserProfileModal';
+import { AdminPanel } from './presentation/components/AdminPanel';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
 import { Trophy, Percent, Flame, Sparkles } from 'lucide-react';
 
@@ -27,6 +28,10 @@ export const App: React.FC = () => {
     loginWithMock,
     logout,
   } = useAuth();
+
+  // สิทธผ์ีู้ดู้แล้ระบบ: email Google ท่ี Google ยืนยันแล้วอยู่ใน AdminConfig
+  const isAdmin = user?.role === 'admin';
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   // Game Engine (scoped by user.id if logged in, or guest if not)
   const {
@@ -55,8 +60,11 @@ export const App: React.FC = () => {
     rollDice,
     claimBailout,
     claimDaily,
+    adminGrantChips,
+    adminResetCooldowns,
+    adminResetWallet,
     resetAllData,
-  } = useGameEngine(user?.id);
+  } = useGameEngine(user?.id, user?.role === 'admin');
 
   // Determine current category
   const isTriple = dice[0] === dice[1] && dice[1] === dice[2];
@@ -101,6 +109,8 @@ export const App: React.FC = () => {
         onToggleSound={toggleSound}
         onOpenStats={() => setShowStatsModal(true)}
         onReset={resetAllData}
+        isAdmin={isAdmin}
+        onOpenAdmin={() => setShowAdminPanel(true)}
       />
 
       {/* 2. Main Game Viewport: Dual Mobile & Desktop Layout */}
@@ -292,9 +302,22 @@ export const App: React.FC = () => {
         balance={balance}
         totalRounds={stats.totalRounds}
         winRate={stats.winRatePercentage}
+        isAdmin={isAdmin}
         onClose={() => setShowProfileModal(false)}
         onLogout={logout}
       />
+
+      {/* 8. Admin Console (เฉพาะผ้ดู้แล้ระบบ) */}
+      {isAdmin && user && (
+        <AdminPanel
+          isOpen={showAdminPanel}
+          adminUser={user}
+          onClose={() => setShowAdminPanel(false)}
+          onGrantChips={adminGrantChips}
+          onResetCooldowns={adminResetCooldowns}
+          onResetWallet={adminResetWallet}
+        />
+      )}
     </div>
   );
 };

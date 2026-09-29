@@ -8,6 +8,7 @@ import { ClaimDailyRewardUseCase } from '../../application/usecases/ClaimDailyRe
 import { LocalStorageWalletRepo } from '../../infrastructure/storage/LocalStorageWalletRepo';
 import { LocalStorageHistoryRepo } from '../../infrastructure/storage/LocalStorageHistoryRepo';
 import { WebCryptoRNG } from '../../infrastructure/rng/WebCryptoRNG';
+import { AdminGrantChipsUseCase } from '../../application/usecases/AdminGrantChips';
 import { soundFX } from '../../infrastructure/sound/SoundFX';
 import confetti from 'canvas-confetti';
 
@@ -36,7 +37,7 @@ export interface GameStoreState {
   showResultModal: boolean;
 }
 
-export function useGameEngine(userId?: string) {
+export function useGameEngine(userId?: string, isAdmin = false) {
   const [balance, setBalance] = useState<number>(1000);
   const [betOption, setBetOption] = useState<BetOption | null>('HIGH');
   const [betAmount, setBetAmount] = useState<number>(50);
@@ -75,6 +76,10 @@ export function useGameEngine(userId?: string) {
   );
   const dailyUseCase = useMemo(
     () => new ClaimDailyRewardUseCase(walletRepo),
+    [walletRepo]
+  );
+  const adminGrantUseCase = useMemo(
+    () => new AdminGrantChipsUseCase(walletRepo),
     [walletRepo]
   );
 
@@ -243,7 +248,7 @@ export function useGameEngine(userId?: string) {
   // Bailout
   const claimBailout = useCallback(async () => {
     try {
-      const res = await bailoutUseCase.execute(userId);
+      const res = await bailoutUseCase.execute(userId, isAdmin);
       setBalance(res.newBalance);
       setCanBailout(false);
       setBailoutTimer(res.cooldownRemainingSeconds);
@@ -253,12 +258,12 @@ export function useGameEngine(userId?: string) {
       const message = err instanceof Error ? err.message : 'ไม่สามารถขอรับชิปได้';
       setError(message);
     }
-  }, [bailoutUseCase, userId]);
+  }, [bailoutUseCase, userId, isAdmin]);
 
   // Daily Claim
   const claimDaily = useCallback(async () => {
     try {
-      const res = await dailyUseCase.execute(userId);
+      const res = await dailyUseCase.execute(userId, isAdmin);
       setBalance(res.newBalance);
       setCanDailyClaim(false);
       setDailyTimer(res.cooldownRemainingSeconds);
@@ -268,7 +273,48 @@ export function useGameEngine(userId?: string) {
       const message = err instanceof Error ? err.message : 'ไม่สามารถรับโบนัสได้';
       setError(message);
     }
-  }, [dailyUseCase, userId]);
+  }, [dailyUseCase, userId, isAdmin]);
+
+  // Admin: เพิ่มชิปให้ผู้เล่น (เฉพาะ admin — role ตรวจสอบแล้วจาก GoogleAuthService)
+  const adminGrantChips = useCallback(
+    async (targetUserId: string, grantAmount: number) => {
+      if (!isAdmin) {
+        throw new Error('สิทธิ์นี้เฉพาะผู้ดูแลระบบเท่านั้น');
+      }
+      const res = await adminGrantUseCase.execute(targetUserId, grantAmount);
+      if (targetUserId === userId) {
+        await syncState();
+      }
+      return res;
+    },
+    [adminGrantUseCase, userId, syncState, isAdmin]
+  );
+
+  const adminResetCooldowns = useCallback(
+    async (targetUserId: string) => {
+      const wallet = await walletRepo.getWallet(targetUserId);
+      wallet.resetCooldowns();
+      await walletRepo.saveWallet(wallet, targetUserId);
+      if (targetUserId === userId) {
+        await syncState();
+      }
+    },
+    [walletRepo, userId, syncState]
+  );
+
+  const adminResetWallet = useCallback(
+    async (targetUserId: string) => {
+      await walletRepo.resetWallet(targetUserId);
+      if (targetUserId === userId) {
+        await syncState();
+        setDice([1, 2, 3]);
+        setSum(6);
+        setLastOutcome(null);
+        setError(null);
+      }
+    },
+    [walletRepo, userId, syncState]
+  );
 
   // Reset Game Data
   const resetAllData = useCallback(async () => {
@@ -309,6 +355,9 @@ export function useGameEngine(userId?: string) {
     rollDice,
     claimBailout,
     claimDaily,
+    adminGrantChips,
+    adminResetCooldowns,
+    adminResetWallet,
     resetAllData,
   };
 }

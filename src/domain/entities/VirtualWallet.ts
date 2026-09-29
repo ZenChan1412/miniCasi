@@ -44,7 +44,7 @@ export class VirtualWallet {
 
   public deduct(amount: number): boolean {
     if (amount <= 0 || !Number.isInteger(amount)) {
-      throw new Error('จำนวนชิปที่ต้องการหักไม่ถูกต้อง');
+      throw new Error('จำนวนชิปท่ีต้องการหักไม่ถูกต้ง่');
     }
     if (this._balance < amount) {
       return false;
@@ -55,14 +55,14 @@ export class VirtualWallet {
 
   public credit(amount: number): void {
     if (amount <= 0 || !Number.isInteger(amount)) {
-      throw new Error('จำนวนชิปที่ต้องการเพิ่มไม่ถูกต้อง');
+      throw new Error('จำนวนชิปท่ีต้องการเพิ่่มไม่ถูกต้ง่');
     }
     this._balance += amount;
   }
 
   /**
-   * สิทธิ์การขอชิปช่วยเหลือฉุกเฉิน (BR-04)
-   * ปลดล็อกเมื่อชิป < 10 และผ่าน Cooldown 60 วินาทีแล้ว
+   * สิทธิ์การขอชิปช่่วยเหลืือฉุึกเฉิิน (BR-04)
+   * ปลดล็อกเมื่ือชิป < 10 และผ่่าน Cooldown 60 วินาทีแล้้ว
    */
   public canClaimBailout(now: number = Date.now()): { eligible: boolean; remainingSeconds: number } {
     if (this._balance >= VirtualWallet.BAILOUT_THRESHOLD) {
@@ -79,7 +79,7 @@ export class VirtualWallet {
   public claimBailout(now: number = Date.now()): number {
     const check = this.canClaimBailout(now);
     if (!check.eligible) {
-      throw new Error('ยังไม่สามารถขอรับชิปช่วยเหลือได้ในขณะนี้');
+      throw new Error('ยงั่ไม่สามารถขอรบชิปช่่วยเหลืือได้ในขณะน้ี');
     }
     this._balance += VirtualWallet.BAILOUT_AMOUNT;
     this._lastBailoutAt = now;
@@ -87,7 +87,7 @@ export class VirtualWallet {
   }
 
   /**
-   * สิทธิ์การรับโบนัสล็อกอินประจำวัน (Daily Faucet)
+   * สิทธิ์การรบโบนััสล็อกอินประจำวนั (Daily Faucet)
    */
   public canClaimDaily(now: number = Date.now()): { eligible: boolean; remainingSeconds: number } {
     if (this._lastDailyClaimAt === 0) {
@@ -104,11 +104,39 @@ export class VirtualWallet {
   public claimDaily(now: number = Date.now()): number {
     const check = this.canClaimDaily(now);
     if (!check.eligible) {
-      throw new Error('คุณได้รับโบนัสประจำวันไปแล้ว กรุณารอรอบถัดไป');
+      throw new Error('คณไดร้บโบนััสประจำวนัไปแล้้ว กรณารอรอบถดไป');
     }
     this._balance += VirtualWallet.DAILY_REWARD_AMOUNT;
     this._lastDailyClaimAt = now;
     return VirtualWallet.DAILY_REWARD_AMOUNT;
+  }
+
+  /**
+   * สิทธิ์ผู้ดูแลระบบ (Admin): รับชิปฉุกเฉินข้าม Cooldown และข้าม threshold 10 ชิป
+   * ใช้เมื่อผู้ใช้ติดอยู่ในช่วงรอรับชิปฉุกเฉิน — Admin เข้าถึงได้เสมอ
+   */
+  public forceClaimBailout(now: number = Date.now()): number {
+    this._balance += VirtualWallet.BAILOUT_AMOUNT;
+    this._lastBailoutAt = now;
+    return VirtualWallet.BAILOUT_AMOUNT;
+  }
+
+  /**
+   * สิทธผ์ีู้ดู้แล้ระบบ (Admin): รบโบนััสรายวนัข้าม Cooldown
+   */
+  public forceClaimDaily(now: number = Date.now()): number {
+    this._balance += VirtualWallet.DAILY_REWARD_AMOUNT;
+    this._lastDailyClaimAt = now;
+    return VirtualWallet.DAILY_REWARD_AMOUNT;
+  }
+
+  /**
+   * สิทธผ์ีู้ดู้แล้ระบบ (Admin): ล้าง Cooldown ทัง้หมด
+   * ให้อกัีรกดรบ Bailout / Daily ได้อกัีรทันที
+   */
+  public resetCooldowns(): void {
+    this._lastBailoutAt = 0;
+    this._lastDailyClaimAt = 0;
   }
 
   public toJSON(): WalletState {

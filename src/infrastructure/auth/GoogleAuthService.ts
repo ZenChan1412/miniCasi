@@ -1,6 +1,7 @@
 import { UserProfile } from '../../domain/entities/User';
 import { IAuthService } from '../../domain/ports/IAuthService';
 import { decodeGoogleJwt } from './jwtDecoder';
+import { isAdminEmail } from '../../domain/constants/AdminConfig';
 
 export class GoogleAuthService implements IAuthService {
   private static readonly STORAGE_KEY = 'high_low_auth_user_v1';
@@ -38,7 +39,12 @@ export class GoogleAuthService implements IAuthService {
     try {
       const dataStr = window.localStorage.getItem(GoogleAuthService.STORAGE_KEY);
       if (dataStr) {
-        this.currentUser = JSON.parse(dataStr) as UserProfile;
+        const parsed = JSON.parse(dataStr) as UserProfile;
+        // ตรวจสอบสิทธิ์ผู้ดูแลระบบทุกครั้งที่โหลด (กัน role เก่าค้างใน localStorage)
+        if (parsed.email) {
+          parsed.role = isAdminEmail(parsed.email.trim().toLowerCase()) ? 'admin' : 'player';
+        }
+        this.currentUser = parsed;
       }
     } catch (e) {
       console.error('โหลดข้อมูลผู้ใช้จาก LocalStorage ล้มเหลว:', e);
@@ -68,6 +74,9 @@ export class GoogleAuthService implements IAuthService {
       throw new Error('โทเค็นการยืนยันตัวตนจาก Google ไม่ถูกต้อง');
     }
 
+    // ตรวจสอบสิทธผ์ีู้ดู้แล้ระบบโดย Email ท่ี Google ยืนยันแล้ว
+    const email = (payload.email || '').trim().toLowerCase();
+
     const user: UserProfile = {
       id: `google_${payload.sub}`,
       email: payload.email,
@@ -76,6 +85,7 @@ export class GoogleAuthService implements IAuthService {
       familyName: payload.family_name,
       picture: payload.picture,
       provider: 'google',
+      role: isAdminEmail(email) ? 'admin' : 'player',
       idToken: credential,
       loggedInAt: Date.now(),
     };
@@ -87,6 +97,8 @@ export class GoogleAuthService implements IAuthService {
   }
 
   public async loginWithMock(mockData?: Partial<UserProfile>): Promise<UserProfile> {
+    const email = (mockData?.email || 'player@gmail.com').trim().toLowerCase();
+
     const user: UserProfile = {
       id: mockData?.id || `mock_${Math.random().toString(36).substring(2, 9)}`,
       email: mockData?.email || 'player@gmail.com',
@@ -94,6 +106,7 @@ export class GoogleAuthService implements IAuthService {
       givenName: mockData?.givenName || 'Google Player',
       picture: mockData?.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
       provider: 'mock',
+      role: isAdminEmail(email) ? 'admin' : 'player',
       loggedInAt: Date.now(),
     };
 
