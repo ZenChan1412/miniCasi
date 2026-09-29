@@ -76,6 +76,13 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
                   <div>• https://mini-casino-game.songpon-official.workers.dev</div>
                 </div>
               </li>
+              <li>
+                ในช่อง <span className="text-amber-400 font-mono">Authorized redirect URIs</span> (เว้นว่างไว้ได้ หรือใส่ URL เดียวกัน):
+                <div className="mt-1 pl-3 font-mono text-[11px] text-slate-300 space-y-0.5">
+                  <div>• http://localhost:5173</div>
+                  <div>• https://mini-casino-game.songpon-official.workers.dev</div>
+                </div>
+              </li>
               <li>คัดลอก Client ID แล้วนำมาวางในไฟล์ <span className="text-emerald-400 font-mono font-bold">.env</span> ของโปรเจกต์</li>
             </ol>
           </div>
