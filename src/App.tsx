@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { authService } from './infrastructure/auth/GoogleAuthService';
+import { decodeGoogleJwt } from './infrastructure/auth/jwtDecoder';
 import { api } from './infrastructure/api/apiClient';
 import { useGameEngine } from './presentation/store/useGameStore';
 import { useAuth } from './presentation/store/useAuthStore';
@@ -149,6 +151,14 @@ export const App: React.FC = () => {
 
       if (!user?.idToken) {
         setRedeemNotice({ ok: false, text: 'ล็อกอินด้วย Google ก่อน แล้วโค้ดจะถูกใช้ให้อัตโนมัติ' });
+        return;
+      }
+      // ID token ของ Google อายุ 1 ชั่วโมง แต่ session ค้างอยู่ใน localStorage ได้นานกว่านั้น
+      // หมดอายุแล้วให้ออกจากระบบเพื่อให้ล็อกอินใหม่ (เก็บโค้ดใน URL ไว้ ล็อกอินเสร็จจะใช้ให้เอง)
+      const exp = decodeGoogleJwt(user.idToken)?.exp;
+      if (typeof exp === 'number' && exp * 1000 < Date.now()) {
+        setRedeemNotice({ ok: false, text: 'เซสชัน Google หมดอายุ กรุณาล็อกอินใหม่ แล้วโค้ดจะถูกใช้ให้อัตโนมัติ' });
+        void authService.logout();
         return;
       }
       window.history.replaceState(null, '', window.location.pathname + window.location.search);

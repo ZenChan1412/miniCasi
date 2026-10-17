@@ -152,7 +152,7 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     /* ---------------- Players ---------------- */
     case 'POST /api/redeem': {
       const who = await whoAmI(request, env);
-      if (!who.ok) return fail('ต้องล็อกอินด้วย Google ก่อนใช้โค้ด', who.status);
+      if (!who.ok) return fail(who.error, who.status);
       const body = await readBody(request);
       const code = typeof body.code === 'string' ? body.code.trim().toLowerCase() : '';
       const chips = parseRedeemCode(code);
