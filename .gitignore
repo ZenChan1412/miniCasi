@@ -41,3 +41,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Cloudflare Wrangler
 .wrangler
 .dev.vars
+
+# wrangler.jsonc มี API key จริง — ใช้ wrangler.example.jsonc เป็นแม่แบบ
+wrangler.jsonc
