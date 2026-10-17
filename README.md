@@ -1,74 +1,84 @@
-# High-Low Dice Casual Mini-Game (มินิเกมลูกเต๋าสูง-ต่ำ ไม่ใช้เงินจริง)
+# High-Low Dice Mini-Game (มินิเกมลูกเต๋าสูง-ต่ำ)
 
-> **เฟส 1 (Phase 1):** ระบบเกมหลัก (Core Gameplay), ระบบกระเป๋าชิปจำลอง, ระบบกู้ชีพชิปฉุกเฉิน (Bailout), โบนัสรายวัน (Daily Faucet), สถิติ Roadmap และระบบเสียงสังเคราะห์ Web Audio  
-> **สถาปัตยกรรม:** Clean Architecture (Domain, Application, Infrastructure, Presentation)  
-> **CI/CD & Deployment:** Cloudflare Pages Auto-Deploy ผ่าน GitHub Actions / Wrangler  
+เกมทอยลูกเต๋า 3 ลูก แทง ต่ำ / ตอง / สูง ด้วยชิป เขียนด้วย React 19 + TypeScript + Vite + Tailwind 4
+รันบน Cloudflare Workers เก็บข้อมูลใน Cloudflare D1
 
----
-
-## 🎲 จุดเด่นของระบบ (Key Highlights)
-1. **Zero Real Money Guarantee:** เล่นด้วยชิปคะแนนจำลอง 100% ไม่มีช่องทางเติมเงินจริง ไม่สามารถแลกเปลี่ยนหรือถอนเป็นเงินสดได้ ปลอดภัยตามกฎหมาย
-2. **CSPRNG Fair Random:** ใช้ Web Cryptography API (`crypto.getRandomValues`) สุ่มแต้มลูกเต๋า 1-6 อย่างเป็นธรรม ไร้อคติทางสถิติ
-3. **Infinite Playability:** เมื่อชิปหมด (< 10) สามารถกดรับชิปช่วยเหลือฉุกเฉิน (+200 ชิป) หรือรับโบนัสล็อกอินรายวัน (+500 ชิป) ได้ตลอดเวลา
-4. **CSS 3D Dice Simulation:** อนิเมชันลูกเต๋า 3 มิติ หมุนและหยุดตามแต้มจริง พร้อมเสียงประกอบสังเคราะห์ผ่าน Web Audio API
-5. **Tamper-Resistant Storage:** ระบบตรวจจับการแก้ไขยอดชิปบน Browser Console ด้วย Checksum Signature
+- **Production:** https://mini-casino-game.songpon-official.workers.dev
+- **สถาปัตยกรรม:** Clean Architecture (domain / application / infrastructure / presentation) + Worker API
+- **คู่มือสำหรับ AI agent / ผู้ดูแล:** [`AGENTS.md`](./AGENTS.md) และ [`deploy.md`](./deploy.md)
 
 ---
 
-## 🛠️ โครงสร้างสถาปัตยกรรม (Architecture Layers)
+## 🎲 ฟีเจอร์หลัก
+
+- **กติกา:** ต่ำ (แต้มรวม 4–10) และสูง (11–17) จ่าย 1:1, ตอง (3 ลูกเท่ากัน) จ่าย 30:1
+- **เดิมพัน:** ขั้นต่ำ 10 ชิป ไม่มีเพดานสูงสุด (ไม่เกินยอดคงเหลือ) เลือกจากปุ่มลัด 10/50/100/250/500,
+  ปุ่ม **MAX** (เดิมพันทั้งยอดที่มี) หรือกรอกจำนวนเองในช่องตัวเลข
+- **สุ่มเป็นธรรม:** ใช้ `crypto.getRandomValues` (CSPRNG) สุ่มแต้ม 1–6
+- **ลูกเต๋า 3 มิติ:** อนิเมชัน CSS 3D พร้อมเสียงสังเคราะห์จาก Web Audio API
+- **กระเป๋าชิป:** โบนัสรายวัน, ชิปช่วยเหลือเมื่อชิปหมด, สถิติและ Roadmap ผลย้อนหลัง
+- **ล็อกอินด้วย Google:** แยกสิทธิ์ `creator` / `admin` / `player` จากอีเมลที่ Google ยืนยันแล้ว
+- **เติม/ถอนชิปผ่าน PromptPay:** สร้าง order และตรวจสถานะผ่าน payment gateway (inwcloud) ฝั่ง Worker
+- **แชทเทพเจ้าลูกเต๋า:** แชทดูดวงต่อ AI ผ่าน Worker (`/api/chat`) มี Gemini เป็น fallback
+- **แถบข่าวผู้เล่น:** ข้อความจำลอง (ชื่อ + เหตุการณ์) เลื่อนใต้ header สุ่มความเร็ว 7–20 วินาที
+  ข้อมูลอยู่ที่ `src/presentation/data/mockActivity.ts` ไม่ใช่ข้อมูลผู้เล่นจริง
+- **Admin Dashboard:** จัดการผู้ใช้ แบน เปลี่ยน role ดู audit log และสถานะฐานข้อมูล
+
+> ⚠️ ระบบมีการเติมและถอนชิปด้วยเงินจริงผ่าน PromptPay ไม่ใช่เกมชิปจำลองล้วนอีกต่อไป
+> ตรวจกฎหมายและข้อกำหนดของ payment gateway ก่อนเปิดใช้งานจริง
+
+---
+
+## 🛠️ โครงสร้างโค้ด
+
 ```text
 src/
-├── domain/               # Core Business Rules (Bet, DiceHand, VirtualWallet, PayoutCalculator)
-├── application/          # Use Cases (PlaceBetAndRoll, ClaimBailout, ClaimDailyReward)
-├── infrastructure/       # Adapters (WebCryptoRNG, LocalStorageWalletRepo, SoundFX)
-└── presentation/         # UI Components (3D Dice, BetBoard, WalletBar, Roadmap, Modals)
+├── domain/          # กฎธุรกิจ (Bet, DiceHand, VirtualWallet, PayoutCalculator, GameRules)
+├── application/     # Use cases (PlaceBetAndRoll, ClaimBailout, ClaimDailyReward, AdminService)
+├── infrastructure/  # ตัวเชื่อมของจริง: api, auth (Google), payment, rng, sound, storage (D1 / LocalStorage)
+├── presentation/    # React components, store, ข้อมูล mock
+└── worker/          # Worker: router, SQL (D1), payment, fortune chat
+migrations/          # D1 migrations (0001–0004)
+tests/               # bun test
 ```
+
+ที่เก็บข้อมูลเลือกอัตโนมัติ: ใช้ **D1** เมื่อ `/api/health` ตอบว่าต่อได้ ไม่เช่นนั้นถอยไปใช้ **LocalStorage**
+(เช่นรัน `bun run dev` เดี่ยวๆ)
 
 ---
 
-## 🚀 การติดตั้งและรันในเครื่อง (Local Development)
+## 🚀 รันในเครื่อง
 
 ```bash
-# ติดตั้ง dependencies
 bun install
-# หรือ npm install
 
-# รันโหมด Development (Hot Reload)
-bun run dev
-# หรือ npm run dev
+bun run dev:cf        # Worker + D1 local ที่ :8787
+bun run dev           # Vite ที่ :5173 (proxy /api ไป :8787) — รันคู่กับ dev:cf ถ้าจะใช้ D1
 
-# รันชุดทดสอบ Automated Unit Tests (14 passing tests)
+bun run db:migrate:local   # apply migration กับ D1 local
+bun run typecheck
 bun test
-
-# สั่ง Build สำหรับ Production
-bun run build
 ```
+
+คัดลอก `.env.example` เป็น `.env` (หรือ `.dev.vars` สำหรับ Worker) แล้วกรอกค่า เช่น `VITE_GOOGLE_CLIENT_ID`,
+`AI_*` / `GEMINI_*`, `INWCLOUD_API_KEY`, `CHIPS_PER_THB`, `MIN_TOPUP_THB`, `MAX_TOPUP_THB`
+คีย์ฝั่ง Worker ห้ามขึ้นต้นด้วย `VITE_` และห้าม commit คีย์จริงลง git
 
 ---
 
-## ☁️ การ Deploy ต่อกับ Cloudflare Pages แบบ Auto
+## ☁️ Deploy (Cloudflare Workers)
 
-### วิธีที่ 1: Auto-deploy ผ่าน GitHub Actions (ตั้งค่าไว้ใน `.github/workflows/deploy.yml`)
-1. เมื่อทำการ Push โค้ดขึ้นบน Branch `master` หรือ `main` บน GitHub:
-   ```bash
-   git add .
-   git commit -m "feat: release phase 1 mini-game"
-   git push origin master
-   ```
-2. ตั้งค่า GitHub Repository Secrets (ไปที่ `Settings` > `Secrets and variables` > `Actions`):
-   - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token ที่มีสิทธิ์แก้ไข Pages
-   - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Account ID
-3. GitHub Actions จะทำการ Test, Build และ Deploy ขึ้น Cloudflare Pages โดยอัตโนมัติทุกครั้งที่มีการ Push!
-
-### วิธีที่ 2: Deploy ตรงจากเครื่องผ่าน Wrangler CLI
 ```bash
-# ล็อกอิน Cloudflare (ครั้งแรก)
-npx wrangler login
-
-# สั่ง Deploy ขึ้น Cloudflare Pages ทันที
-bun run deploy:cf
-# หรือ npx wrangler pages deploy dist --project-name=mini-casino-game
+bun run typecheck
+bun test
+npx wrangler d1 migrations apply mini-casino-db --remote   # ถ้ามี migration ใหม่ ต้องมาก่อน deploy
+bun run deploy:cf                                          # vite build + wrangler deploy
+curl -s https://mini-casino-game.songpon-official.workers.dev/api/health   # ต้องได้ "ok": true
 ```
+
+- ใช้ `bun run deploy:cf` เสมอ เพราะ `wrangler deploy` เดี่ยวๆ ไม่ build ให้
+- `.github/workflows/deploy.yml` ไม่ apply migration ให้ ต้องทำเองก่อน push
+- รายละเอียดและวิธี rollback ดู [`deploy.md`](./deploy.md)
 
 ---
 
