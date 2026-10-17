@@ -123,6 +123,8 @@ async function askGod(history: { role: string; text: string }[], fallbackInput: 
     if (res.ok) {
       const data = (await res.json()) as { reply?: string };
       if (data.reply) return data.reply;
+    } else if (res.status === 401) {
+      return 'เซสชัน Google หมดอายุ กรุณาล็อกอินใหม่ก่อนถามข้าอีกครั้ง';
     }
   } catch {
     // เครือข่ายล่ม → ใช้ mock
@@ -181,7 +183,14 @@ function CrystalBallThinking() {
   );
 }
 
-export const FortuneChatBot: React.FC = () => {
+interface FortuneChatBotProps {
+  /** true เมื่อล็อกอิน Google แล้ว — guest เห็นแผงแชทแต่ส่งข้อความไม่ได้ */
+  isLoggedIn: boolean;
+  /** กดปุ่มล็อกอินในแผงแชท (เปิด Google One Tap หรือหน้าตั้งค่า) */
+  onRequireLogin: () => void;
+}
+
+export const FortuneChatBot: React.FC<FortuneChatBotProps> = ({ isLoggedIn, onRequireLogin }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -237,6 +246,10 @@ export const FortuneChatBot: React.FC = () => {
   const sendMessage = (raw: string) => {
     const text = raw.trim();
     if (!text || isTyping) return;
+    if (!isLoggedIn) {
+      onRequireLogin();
+      return;
+    }
 
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
@@ -342,6 +355,16 @@ export const FortuneChatBot: React.FC = () => {
           {isTyping && <CrystalBallThinking />}
         </div>
 
+        {!isLoggedIn && (
+          <button
+            type="button"
+            onClick={onRequireLogin}
+            className="shrink-0 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-200 text-sm font-bold hover:bg-amber-500/25 transition-colors cursor-pointer"
+          >
+            🔒 ต้องเข้าสู่ระบบด้วย Google ก่อนจึงจะแชทกับเทพเจ้าได้
+          </button>
+        )}
+
         {/* Quick Chips + Input */}
         <div className="flex flex-col gap-1.5 min-w-0 shrink-0">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -349,7 +372,7 @@ export const FortuneChatBot: React.FC = () => {
               <button
                 key={chip}
                 type="button"
-                disabled={isTyping}
+                disabled={isTyping || !isLoggedIn}
                 onClick={() => sendMessage(chip)}
                 className={`px-3 py-1.5 rounded-full bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-purple-500/40 hover-lift transition-colors cursor-pointer disabled:opacity-50 text-xs sm:text-sm`}
               >
@@ -362,12 +385,13 @@ export const FortuneChatBot: React.FC = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="ถามเทพเจ้า..."
+              placeholder={isLoggedIn ? 'ถามเทพเจ้า...' : 'ล็อกอินก่อนจึงจะถามได้'}
+              disabled={!isLoggedIn}
               className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-purple-500/50 text-base lg:text-sm`}
             />
             <button
               type="submit"
-              disabled={isTyping || !input.trim()}
+              disabled={!isLoggedIn || isTyping || !input.trim()}
               className={`rounded-lg bg-purple-500/80 hover:bg-purple-500 text-white transition-colors cursor-pointer disabled:opacity-40 shrink-0 ${isSheet ? 'p-3' : 'p-2.5'}`}
               title="ส่งข้อความ"
             >

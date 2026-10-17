@@ -112,6 +112,17 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
     }
   }, [walletRepo, historyRepo, userId]);
 
+  // เพลงพื้นหลัง: เบราว์เซอร์ห้ามเล่นเสียงก่อนผู้ใช้แตะหน้าจอ จึงเริ่มตอนแตะ/กดครั้งแรก
+  useEffect(() => {
+    const start = () => soundFX.startMusic();
+    const events = ['pointerdown', 'touchstart', 'click', 'keydown'] as const;
+    events.forEach((e) => window.addEventListener(e, start, { once: true }));
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, start));
+      soundFX.stopMusic();
+    };
+  }, []);
+
   useEffect(() => {
     syncState();
   }, [syncState, userId]);

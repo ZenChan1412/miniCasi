@@ -99,31 +99,24 @@ export const App: React.FC = () => {
     return () => clearTimeout(t);
   }, [loginNotice]);
 
-  const handleTopUp = () => {
-    if (!user) {
-      setLoginNotice(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      if (!isConfigured) {
-        setShowConfigModal(true);
-      } else {
-        window.google?.accounts?.id?.prompt();
-      }
-      return;
+  // โหมด demo: guest เติมชิป ถอนเงิน และแชทกับเทพเจ้าไม่ได้ → ไล่ไปล็อกอิน Google ก่อน
+  const requireLogin = () => {
+    setLoginNotice(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!isConfigured) {
+      setShowConfigModal(true);
+    } else {
+      window.google?.accounts?.id?.prompt();
     }
+  };
+
+  const handleTopUp = () => {
+    if (!user) return requireLogin();
     setShowTopUpModal(true);
   };
 
   const handleWithdraw = () => {
-    if (!user) {
-      setLoginNotice(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      if (!isConfigured) {
-        setShowConfigModal(true);
-      } else {
-        window.google?.accounts?.id?.prompt();
-      }
-      return;
-    }
+    if (!user) return requireLogin();
     setShowWithdrawModal(true);
   };
 
@@ -367,7 +360,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* ้หอทบอทแอย้ยผล (Mock) — เดส์ตป้ผเแบนเแแถ inline / มึ้จึีุเแบนปุมเแได Modal */}
-          <FortuneChatBot />
+          <FortuneChatBot isLoggedIn={Boolean(user)} onRequireLogin={requireLogin} />
         </div>
 
         {/* Desktop View (>= lg): Expansive Casino Table & Betting Dashboard */}
@@ -488,7 +481,7 @@ export const App: React.FC = () => {
               </div>
 
               {/* ้หอทบอทแอย้ยผล (Mock) — เดส์ตป้ผเแบนเแแถ inline / มึ้จึีุเแบนปุมเแได Modal */}
-              <FortuneChatBot />
+              <FortuneChatBot isLoggedIn={Boolean(user)} onRequireLogin={requireLogin} />
             </div>
           </aside>
         </div>
@@ -551,7 +544,7 @@ export const App: React.FC = () => {
           role="alert"
           className="animate-fade-in-up fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-3 rounded-xl bg-amber-500 text-slate-950 text-sm font-bold shadow-xl"
         >
-          กรุณาเข้าสู่ระบบด้วย Google ก่อนเติมชิป (ปุ่มอยู่มุมขวาบน)
+          โหมด demo: guest เติมชิป ถอนเงิน หรือแชทกับเทพเจ้าไม่ได้ กรุณาเข้าสู่ระบบด้วย Google (ปุ่มอยู่มุมขวาบน)
         </div>
       )}
 

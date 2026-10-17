@@ -90,6 +90,9 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
 
     /* ---------------- เทพเจ้าลูกเต๋า (Gemini) ---------------- */
     case 'POST /api/chat': {
+      // เทพเจ้าใช้โควตา Gemini จึงเปิดให้เฉพาะผู้ที่ล็อกอิน Google แล้ว (guest ใช้ไม่ได้)
+      const who = await whoAmI(request, env);
+      if (!who.ok) return fail('ต้องล็อกอินด้วย Google ก่อนแชทกับเทพเจ้า', who.status);
       const body = await readBody(request);
       const result = await askFortuneGod(env, body.messages);
       return 'reply' in result ? json(result) : fail(result.error, result.status);
@@ -327,6 +330,9 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
       return json(toPublicConfig(readPaymentConfig(env)));
 
     case 'POST /api/payment/promptpay/create': {
+      // โหมด demo: guest เติมชิปไม่ได้ ต้องล็อกอิน Google และผูกคำสั่งซื้อกับ id จาก token เท่านั้น
+      const who = await whoAmI(request, env);
+      if (!who.ok) return fail('ต้องล็อกอินด้วย Google ก่อนเติมชิป (โหมด demo ไม่รองรับ guest)', who.status);
       const body = await readBody(request);
       const config = readPaymentConfig(env);
       if (!config.apiKey) {
@@ -352,7 +358,7 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
       if (!result.ok) return fail(result.error, result.status);
 
       const order = await repo.createPaymentOrder(db, {
-        playerId: playerIdOf(body.userId),
+        playerId: who.actor.playerId,
         transactionId: result.data.transactionId,
         chips,
         amountThb: result.data.amountThb,
