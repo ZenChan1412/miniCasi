@@ -42,3 +42,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .wrangler
 .dev.vars
 
+
+# Cloudflare config (key อยู่ใน Dashboard แต่ไม่เก็บใน repo)
+wrangler.jsonc
