@@ -229,3 +229,51 @@
 @media (prefers-reduced-motion: reduce) {
   .verdict-pop, .verdict-shine { animation: none; }
 }
+
+/* Crystal ball: ลูกแก้วทำนายลอยระหว่างรอเทพตอบ */
+.orb-float { animation: orbBob 3s ease-in-out infinite; }
+.orb-ball {
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.75) 0 6%, transparent 22%),
+    radial-gradient(circle at 50% 55%, #a78bfa 0%, #6d28d9 55%, #2e1065 100%);
+  box-shadow: 0 0 18px 4px rgba(167,139,250,.55), inset 0 -6px 12px rgba(0,0,0,.45);
+  overflow: hidden;
+}
+.orb-mist {
+  position: absolute; inset: -30%;
+  background: conic-gradient(from 0deg, transparent, rgba(244,114,182,.55), transparent 40%, rgba(96,165,250,.5), transparent 80%);
+  filter: blur(6px);
+  animation: orbSwirl 3.5s linear infinite;
+}
+.orb-shine { position: absolute; left: 18%; top: 12%; width: 28%; height: 18%; border-radius: 50%; background: rgba(255,255,255,.6); transform: rotate(-30deg); filter: blur(1px); }
+.orb-base { background: linear-gradient(#92400e, #451a03); }
+.orb-shadow { background: rgba(0,0,0,.45); filter: blur(2px); animation: orbShadow 3s ease-in-out infinite; }
+.orb-star {
+  position: absolute; left: 50%; top: 22px; font-size: 11px; color: #fde68a; pointer-events: none;
+  text-shadow: 0 0 6px #fbbf24; animation: orbOrbit 3.6s linear infinite;
+}
+.orb-zap { animation: orbBob 3s ease-in-out infinite, orbZap .55s ease-out; }
+.orb-zap .orb-ball { box-shadow: 0 0 30px 10px rgba(253,230,138,.85), inset 0 -6px 12px rgba(0,0,0,.35); }
+.orb-dots::after { content: ''; animation: orbDots 1.4s steps(4, end) infinite; }
+@keyframes orbBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+@keyframes orbShadow { 0%,100% { transform: translateX(-50%) scaleX(1); opacity: .5 } 50% { transform: translateX(-50%) scaleX(.7); opacity: .25 } }
+@keyframes orbSwirl { to { transform: rotate(360deg) } }
+@keyframes orbOrbit {
+  0% { transform: translate(-50%, -50%) rotate(0deg) translateX(30px) rotate(0deg) scale(.7); opacity: .3 }
+  50% { opacity: 1; transform: translate(-50%, -50%) rotate(180deg) translateX(30px) rotate(-180deg) scale(1.1) }
+  100% { transform: translate(-50%, -50%) rotate(360deg) translateX(30px) rotate(-360deg) scale(.7); opacity: .3 }
+}
+@keyframes orbZap { 0% { transform: scale(1) } 20% { transform: scale(1.18) rotate(-8deg) } 45% { transform: scale(.94) rotate(7deg) } 70% { transform: scale(1.06) rotate(-3deg) } 100% { transform: scale(1) } }
+@keyframes orbDots { 0% { content: '' } 25% { content: '.' } 50% { content: '..' } 75%,100% { content: '...' } }
+@media (prefers-reduced-motion: reduce) {
+  .orb-float, .orb-mist, .orb-star, .orb-shadow, .orb-zap, .orb-dots::after { animation: none !important; }
+}
+
+/* แถบข่าวผู้เล่น: เลื่อนจากขวาไปซ้าย 1 ชุดต่อรอบ */
+@keyframes tickerSlide {
+  from { transform: translateX(100vw) }
+  to { transform: translateX(-100%) }
+}
+.ticker-slide {
+  display: inline-block;
+  animation: tickerSlide linear forwards;
+}

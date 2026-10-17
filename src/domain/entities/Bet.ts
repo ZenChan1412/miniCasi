@@ -9,7 +9,6 @@ export interface ValidationResult {
 
 export class Bet {
   public static readonly MIN_BET = GAME_RULES.MIN_BET;
-  public static readonly MAX_BET = GAME_RULES.MAX_BET;
 
   constructor(
     public readonly option: BetOption,
@@ -23,9 +22,6 @@ export class Bet {
   public validate(currentBalance: number): ValidationResult {
     if (this.amount < Bet.MIN_BET) {
       return { isValid: false, error: `เดิมพันขั้นต่ำคือ ${Bet.MIN_BET} ชิป` };
-    }
-    if (this.amount > Bet.MAX_BET) {
-      return { isValid: false, error: `เดิมพันสูงสุดต่อรอบไม่เกิน ${Bet.MAX_BET} ชิป` };
     }
     if (this.amount > currentBalance) {
       return { isValid: false, error: 'ยอดชิปคงเหลือของคุณไม่เพียงพอ' };

@@ -33,7 +33,7 @@ flowchart TD
 
     User -->|โต้ตอบผ่าน UI / แตะหน้าจอ| ClientApp
     ClientApp <-->|แคช UI State ออฟไลน์| LocalStore
-    ClientApp -->|HTTP REST / JSON<br/>(Place Bet, Claim Free Chips)| RateLimiter
+    ClientApp -->|HTTP REST / JSON<br/>(Place Bet, Claim Chips)| RateLimiter
     RateLimiter -->|คำขอที่ผ่านการตรวจสอบ| GameServer
     GameServer <-->|สุ่มแต้มเต๋า 1-6 ที่ตรวจสอบได้| RNG
     GameServer <-->|บันทึกบัญชีชิป / ตรวจสอบสิทธิ์| WalletEngine

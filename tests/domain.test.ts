@@ -18,11 +18,9 @@ describe('Domain: Bet Entity Validation', () => {
     expect(result.error).toContain('เดิมพันขั้นต่ำคือ 10');
   });
 
-  it('ควรล้มเหลวเมื่อเดิมพันเกินขีดจำกัดสูงสุด 500 ชิป', () => {
-    const bet = new Bet('TRIPLE', 501);
-    const result = bet.validate(1000);
-    expect(result.isValid).toBe(false);
-    expect(result.error).toContain('ไม่เกิน 500');
+  it('ควรผ่านเมื่อเดิมพันเกิน 500 ชิปแต่ไม่เกินยอดคงเหลือ (ไม่มีเพดานสูงสุด)', () => {
+    const bet = new Bet('TRIPLE', 5000);
+    expect(bet.validate(5000).isValid).toBe(true);
   });
 
   it('ควรล้มเหลวเมื่อชิปในกระเป๋าไม่เพียงพอ', () => {

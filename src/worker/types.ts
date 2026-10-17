@@ -35,7 +35,23 @@ export interface AssetsBinding {
 export interface Env {
   DB: D1Database;
   ASSETS: AssetsBinding;
-  /** ตั้งใน .env / .dev.vars (local) หรือ `wrangler secret put` (production) */
+  /** AI หลัก (OpenAI-compatible) — ตั้งใน Cloudflare Dashboard; base URL ลงท้าย /v1 */
+  AI_BASE_URL?: string;
+  AI_API_KEY?: string;
+  AI_MODEL?: string;
+  /** Gemini = fallback; ตั้งใน .env / .dev.vars (local) หรือ `wrangler secret put` (production) */
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
+
+  /* ---- Payment Gateway (inwcloud.shop) หมวด PromptPay ---- */
+  /** คีย์ลับของ Payment Gateway — ตั้งใน wrangler.jsonc (vars) หรือ `wrangler secret put INWCLOUD_API_KEY` */
+  INWCLOUD_API_KEY?: string;
+  /** ฐาน URL ของ Gateway (ค่าเริ่มต้น https://api.inwcloud.shop) */
+  INWCLOUD_BASE_URL?: string;
+  /** อัตราแลกชิป: กี่ชิปต่อ 1 บาท (ค่าเริ่มต้น 10) */
+  CHIPS_PER_THB?: string;
+  /** ยอดเติมขั้นต่ำหน่วยบาท (ค่าเริ่มต้น 20) */
+  MIN_TOPUP_THB?: string;
+  /** ยอดเติมสูงสุดหน่วยบาท (ค่าเริ่มต้น 5000) */
+  MAX_TOPUP_THB?: string;
 }

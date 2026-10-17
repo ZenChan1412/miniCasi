@@ -215,3 +215,89 @@ components:
         detail: { type: string }
         code: { type: string }
 ```
+
+---
+
+## 5. เติมชิปด้วยเงินจริงผ่าน Payment Gateway (PromptPay)
+
+ส่วนนี้เป็น endpoint จริงที่ implement ใน Worker (`src/worker/index.ts`) ต่อกับ
+Payment Gateway ของ **inwcloud.shop** หมวด PromptPay
+(เอกสารผู้ให้บริการ: https://inwcloud.shop/payment-gateway/api-docs)
+
+หลักการสำคัญ: **คีย์ API ของ Gateway อยู่ใน Worker เท่านั้น** (`INWCLOUD_API_KEY`)
+เบราว์เซอร์ไม่เคยเห็นคีย์ จึงเรียกผ่าน endpoint ของเรา แล้วให้ Worker ไปคุยกับ Gateway อีกชั้น
+
+| Method | Endpoint Path | Summary |
+| :--- | :--- | :--- |
+| `GET` | `/api/payment/config` | อ่านอัตราแลกและขอบเขตยอดเติม (ไม่ต้องใช้คีย์) |
+| `POST` | `/api/payment/promptpay/create` | สร้าง QR พร้อมเพย์ตามจำนวนชิปที่ต้องการ |
+| `POST` | `/api/payment/promptpay/check` | ตรวจการชำระเงิน และเติมชิปเมื่อสำเร็จ |
+
+### 5.1 อ่านการตั้งค่า: `GET /api/payment/config`
+
+```json
+{
+  "enabled": true,
+  "chipsPerThb": 10,
+  "minTopupThb": 20,
+  "maxTopupThb": 5000
+}
+```
+
+`enabled` เป็น `false` เมื่อ Worker ยังไม่ได้ตั้งค่า `INWCLOUD_API_KEY`
+
+### 5.2 สร้าง QR: `POST /api/payment/promptpay/create`
+
+Request Body:
+```json
+{ "userId": "google_creator_songpon", "chips": 500 }
+```
+
+Response (200 OK):
+```json
+{
+  "status": "pending",
+  "transactionId": "Market-1-....",
+  "qrUrl": "https://api.qrserver.com/v1/create-qr-code/?data=...",
+  "payload": "000201010.....",
+  "amountThb": 50,
+  "chips": 500,
+  "expiresAt": 1764246956000
+}
+```
+
+- ยอดบาทคำนวณจาก `chips / CHIPS_PER_THB` และต้องอยู่ในช่วง `MIN_TOPUP_THB`–`MAX_TOPUP_THB`
+- รายการถูกบันทึกในตาราง `payment_orders` โดย `transaction_id` เป็น UNIQUE
+
+### 5.3 ตรวจและเติมชิป: `POST /api/payment/promptpay/check`
+
+Request Body:
+```json
+{ "transactionId": "Market-1-...." }
+```
+
+Response ยังไม่ชำระ (200 OK):
+```json
+{ "status": "pending" }
+```
+
+Response ชำระแล้ว (200 OK):
+```json
+{ "status": "paid", "chips": 500, "amountThb": 50, "balance": 1500 }
+```
+
+การเติมชิปเป็น **idempotent**: Worker จะ `UPDATE payment_orders SET status='paid'
+WHERE transaction_id = ? AND status = 'pending'` ก่อน แล้วจึงเติมชิป
+ถ้า `changes = 0` (รายการถูกเคลียร์ไปแล้ว) จะไม่เติมซ้ำ แม้ผู้ใช้กดตรวจสอบหลายครั้ง
+หรือเปิดหลายแท็บพร้อมกัน — ทุกครั้งที่เติมสำเร็จจะบันทึก ledger `txn_type = 'PURCHASE'`
+ลงตาราง `wallet_transactions`
+
+### 5.4 ตัวแปรสภาพแวดล้อม (Worker)
+
+| ตัวแปร | ค่าเริ่มต้น | ความหมาย |
+| :--- | :--- | :--- |
+| `INWCLOUD_API_KEY` | (ว่าง) | คีย์ลับของ Payment Gateway — ต้องตั้งก่อนใช้งาน |
+| `INWCLOUD_BASE_URL` | `https://api.inwcloud.shop` | ฐาน URL ของ Gateway |
+| `CHIPS_PER_THB` | `10` | กี่ชิปต่อ 1 บาท |
+| `MIN_TOPUP_THB` | `20` | ยอดเติมขั้นต่ำ (บาท) |
+| `MAX_TOPUP_THB` | `5000` | ยอดเติมสูงสุด (บาท) |

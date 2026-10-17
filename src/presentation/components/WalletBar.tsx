@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Coins,
+  Gift,
   Volume2,
   VolumeX,
-  Gift,
-  LifeBuoy,
   BarChart3,
   RefreshCw,
   ShieldCheck,
@@ -17,10 +16,6 @@ import { GoogleAuthButton } from './GoogleAuthButton';
 
 interface WalletBarProps {
   balance: number;
-  canBailout: boolean;
-  bailoutTimer: number;
-  canDailyClaim: boolean;
-  dailyTimer: number;
   isMuted: boolean;
   user: UserProfile | null;
   isConfigured: boolean;
@@ -28,8 +23,8 @@ interface WalletBarProps {
   onOpenProfile: () => void;
   onOpenConfig: () => void;
   onCredentialSuccess: (credential: string) => void;
-  onClaimBailout: () => void;
-  onClaimDaily: () => void;
+  onTopUp: () => void;
+  onWithdraw: () => void;
   onToggleSound: () => void;
   onOpenStats: () => void;
   onReset: () => void;
@@ -41,10 +36,6 @@ interface WalletBarProps {
 
 export const WalletBar: React.FC<WalletBarProps> = ({
   balance,
-  canBailout,
-  bailoutTimer,
-  canDailyClaim,
-  dailyTimer,
   isMuted,
   user,
   isConfigured,
@@ -52,8 +43,8 @@ export const WalletBar: React.FC<WalletBarProps> = ({
   onOpenProfile,
   onOpenConfig,
   onCredentialSuccess,
-  onClaimBailout,
-  onClaimDaily,
+  onTopUp,
+  onWithdraw,
   onToggleSound,
   onOpenStats,
   onReset,
@@ -80,15 +71,6 @@ export const WalletBar: React.FC<WalletBarProps> = ({
       document.body.style.overflow = prevOverflow;
     };
   }, [menuOpen]);
-
-  const formatTime = (seconds: number): string => {
-    if (seconds <= 0) return 'พร้อมกดรับ';
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hrs > 0) return `${hrs}ชม. ${mins}น.`;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const balanceLabel = user
     ? `ยอดชิปบัญชี ${user.givenName || user.name}`
@@ -118,49 +100,6 @@ export const WalletBar: React.FC<WalletBarProps> = ({
     <ShieldCheck className="w-4 h-4" />
   );
 
-  // ปุ่ม Daily Bonus ใช้ร่อกันทั้งใน drawer (mobile) และ header (desktop)
-  const dailyButton = (
-    <button
-      type="button"
-      disabled={!canDailyClaim}
-      onClick={() => {
-        onClaimDaily();
-        closeMenu();
-      }}
-      className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-        canDailyClaim
-          ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/30 hover:scale-[1.02] active:scale-95'
-          : 'bg-slate-900 text-slate-400 border border-slate-800 cursor-not-allowed opacity-60'
-      }`}
-      title="โบนัสล็อกอินรายวัน +500 ชิป"
-    >
-      <Gift className="w-4 h-4" />
-      <span>{canDailyClaim ? 'รับฟรี +500 ชิป' : `โบนัสรายวัน ${formatTime(dailyTimer)}`}</span>
-    </button>
-  );
-
-  // ปุ่มกู้ชีพ (แสดงเฉพาะตอนชิปเหลือน้อย)
-  const bailoutButton =
-    balance < 10 ? (
-      <button
-        type="button"
-        disabled={!canBailout}
-        onClick={() => {
-          onClaimBailout();
-          closeMenu();
-        }}
-        className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-          canBailout
-            ? 'bg-gradient-to-r from-red-500 via-amber-500 to-yellow-500 text-slate-950 font-black shadow-md shadow-red-500/30 animate-pulse hover:scale-[1.02]'
-            : 'bg-slate-900 text-slate-400 border border-slate-800 cursor-not-allowed'
-        }`}
-        title="ชิปฉุกเฉินเมื่อชิปหมด +200 ชิป"
-      >
-        <LifeBuoy className="w-4 h-4 text-slate-950" />
-        <span>{canBailout ? 'กู้ชีพ +200 ชิป' : `กู้ชีพพร้อมใน ${bailoutTimer}s`}</span>
-      </button>
-    ) : null;
-
   return (
     <>
       <header className="w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 transition-all">
@@ -177,7 +116,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
               </h1>
               <span className="text-[10px] text-emerald-400 font-medium tracking-wide flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-ping" />
-                ชิปเล่นฟรี 100%
+                ชิปเล่น 100%
               </span>
             </div>
           </div>
@@ -214,14 +153,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
                 <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">
                   High-Low Dice
                 </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  CASUAL
-                </span>
               </div>
-              <span className="text-[11px] text-emerald-400 font-medium tracking-wide flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-ping" />
-                ชิปเล่นฟรี 100% (No Real Money)
-              </span>
             </div>
           </div>
 
@@ -254,35 +186,23 @@ export const WalletBar: React.FC<WalletBarProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              disabled={!canDailyClaim}
-              onClick={onClaimDaily}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                canDailyClaim
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/30 hover:scale-105 active:scale-95'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 cursor-not-allowed opacity-60'
-              }`}
-              title="โบนัสล็อกอินรายวัน +500 ชิป"
+              onClick={onTopUp}
+              className="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/30 hover:scale-105 active:scale-95"
+              title={user ? 'เติมชิป' : 'เข้าสู่ระบบเพื่อเติมชิป'}
             >
               <Gift className="w-4 h-4" />
-              <span>{canDailyClaim ? 'รับฟรี +500' : formatTime(dailyTimer)}</span>
+              <span>เติมชิป</span>
             </button>
 
-            {balance < 10 && (
-              <button
-                type="button"
-                disabled={!canBailout}
-                onClick={onClaimBailout}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  canBailout
-                    ? 'bg-gradient-to-r from-red-500 via-amber-500 to-yellow-500 text-slate-950 font-black shadow-md shadow-red-500/30 animate-pulse hover:scale-105'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800 cursor-not-allowed'
-                }`}
-                title="ชิปฉุกเฉินเมื่อชิปหมด +200 ชิป"
-              >
-                <LifeBuoy className="w-4 h-4 text-slate-950" />
-                <span>{canBailout ? 'กู้ชีพ +200' : `${bailoutTimer}s`}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onWithdraw}
+              className="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer bg-slate-900 border border-slate-700 text-white hover:bg-slate-800 shadow-sm hover:scale-105 active:scale-95"
+              title={user ? 'ถอนเงิน' : 'เข้าสู่ระบบเพื่อถอนเงิน'}
+            >
+              <Coins className="w-4 h-4 text-amber-400" />
+              <span>ถอนเงิน</span>
+            </button>
 
             <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
               <button
@@ -412,11 +332,33 @@ export const WalletBar: React.FC<WalletBarProps> = ({
             )}
           </section>
 
-          {/* ชิปฟรี */}
+          {/* ชิป */}
           <section className="space-y-2">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">ชิปฟรี</h3>
-            {dailyButton}
-            {bailoutButton}
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">ชิป</h3>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onTopUp();
+                  closeMenu();
+                }}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md shadow-emerald-500/30 hover:scale-[1.02] active:scale-95"
+              >
+                <Gift className="w-4 h-4" />
+                <span>เติมชิป</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onWithdraw();
+                  closeMenu();
+                }}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 shadow-sm hover:scale-[1.02] active:scale-95"
+              >
+                <Coins className="w-4 h-4 text-amber-400" />
+                <span>ถอนเงิน</span>
+              </button>
+            </div>
           </section>
 
           {/* เครื่องมือ */}
@@ -514,7 +456,6 @@ export const WalletBar: React.FC<WalletBarProps> = ({
                 <div className="text-[10px] text-slate-400">จ่าย 1:1</div>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 text-center">Zero Real Money — ชิปจำลองเท่านั้น</p>
           </section>
         </div>
       </aside>

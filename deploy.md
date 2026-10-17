@@ -66,7 +66,7 @@ script นี้คือ `vite build && wrangler deploy` — ต้อง build
 ### 4. ตรวจผลหลัง deploy
 
 ```bash
-# ควรได้ "ok": true และตาราง 8 ตัวครบ
+# ควรได้ "ok": true และตาราง 9 ตัวครบ
 curl -s https://mini-casino-game.<subdomain>.workers.dev/api/health | python3 -m json.tool
 
 # ข้อมูลผู้ใช้ออกมาจริงไหม

@@ -145,6 +145,42 @@ const loadMessages = (): ChatMessage[] => {
   return [WELCOME_MESSAGE];
 };
 
+const ORB_STARS = ['✦', '✧', '⋆', '✦'];
+
+/** ลูกแก้วลอยได้ระหว่างรอเทพตอบ: แตะ/คลิกแล้วลูกแก้วสะดุ้งและวาบแสง */
+function CrystalBallThinking() {
+  const [zap, setZap] = useState(0);
+  return (
+    <div className="flex justify-start" role="status" aria-live="polite">
+      <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/80 border border-slate-700/60 rounded-xl rounded-bl-sm">
+        <button
+          type="button"
+          key={zap}
+          onClick={() => setZap((n) => n + 1)}
+          aria-label="เขย่าลูกแก้ว"
+          className={`orb-float relative w-14 h-16 shrink-0 cursor-pointer ${zap ? 'orb-zap' : ''}`}
+        >
+          {ORB_STARS.map((c, i) => (
+            <span key={i} className="orb-star" style={{ animationDelay: `${i * -0.9}s` }}>
+              {c}
+            </span>
+          ))}
+          <span className="orb-ball absolute left-1/2 top-0 -translate-x-1/2 w-12 h-12 rounded-full">
+            <span className="orb-mist" />
+            <span className="orb-shine" />
+          </span>
+          <span className="orb-base absolute left-1/2 bottom-3 -translate-x-1/2 w-9 h-2.5 rounded-b-lg" />
+          <span className="orb-shadow absolute left-1/2 bottom-0 -translate-x-1/2 w-10 h-1.5 rounded-full" />
+        </button>
+        <span className="text-sm text-slate-300 italic">
+          เทพเจ้ากำลังเพ่งมองดวงดาว<span className="orb-dots" />
+          <span className="block text-[10px] not-italic text-slate-500">แตะลูกแก้วดูสิ</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export const FortuneChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [input, setInput] = useState('');
@@ -303,13 +339,7 @@ export const FortuneChatBot: React.FC = () => {
             </div>
           ))}
 
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className={`px-3 py-2 text-sm text-slate-400 bg-slate-800/80 border border-slate-700/60 rounded-xl rounded-bl-sm italic`}>
-                เทพเจ้ากำลังเพ่งมองดวงดาว...
-              </div>
-            </div>
-          )}
+          {isTyping && <CrystalBallThinking />}
         </div>
 
         {/* Quick Chips + Input */}

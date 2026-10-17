@@ -2,6 +2,12 @@ import { Env } from './types';
 import * as repo from './repo';
 import { GUEST_ID } from './repo';
 import { askFortuneGod } from './fortune';
+import {
+  checkPromptPayCharge,
+  createPromptPayCharge,
+  readPaymentConfig,
+  toPublicConfig,
+} from './payment';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -180,6 +186,91 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
         return fail('ต้องส่ง entry ที่มี action และ detail');
       }
       return json(await repo.addAuditLog(db, entry as never));
+    }
+
+    /* ---------------- Payment (เติมชิปด้วยเงินจริง: PromptPay) ---------------- */
+    case 'GET /api/payment/config':
+      return json(toPublicConfig(readPaymentConfig(env)));
+
+    case 'POST /api/payment/promptpay/create': {
+      const body = await readBody(request);
+      const config = readPaymentConfig(env);
+      if (!config.apiKey) {
+        return fail('ระบบเติมชิปด้วยเงินจริงยังไม่เปิดใช้งาน (ยังไม่ได้ตั้งค่า INWCLOUD_API_KEY)', 503);
+      }
+
+      const chips = Math.floor(Number(body.chips));
+      if (!Number.isFinite(chips) || chips <= 0) {
+        return fail('จำนวนชิปที่ต้องการเติมไม่ถูกต้อง');
+      }
+
+      const minChips = Math.ceil(config.minTopupThb * config.chipsPerThb);
+      const maxChips = Math.floor(config.maxTopupThb * config.chipsPerThb);
+      if (chips < minChips) {
+        return fail(`ยอดเติมขั้นต่ำ ${minChips.toLocaleString()} ชิป (${config.minTopupThb} บาท)`);
+      }
+      if (chips > maxChips) {
+        return fail(`ยอดเติมสูงสุด ${maxChips.toLocaleString()} ชิป (${config.maxTopupThb} บาท)`);
+      }
+
+      const amountThb = Math.ceil(chips / config.chipsPerThb);
+      const result = await createPromptPayCharge(env, amountThb);
+      if (!result.ok) return fail(result.error, result.status);
+
+      const order = await repo.createPaymentOrder(db, {
+        playerId: playerIdOf(body.userId),
+        transactionId: result.data.transactionId,
+        chips,
+        amountThb: result.data.amountThb,
+        qrUrl: result.data.qrUrl,
+        payload: result.data.payload,
+        expiresAt: result.data.expiresAt,
+      });
+
+      return json({
+        status: 'pending',
+        transactionId: order.transactionId,
+        qrUrl: order.qrUrl ?? '',
+        payload: order.payload ?? '',
+        amountThb: order.amountThb,
+        chips: order.chips,
+        expiresAt: order.expiresAt ?? 0,
+      });
+    }
+
+    case 'POST /api/payment/promptpay/check': {
+      const body = await readBody(request);
+      const transactionId = typeof body.transactionId === 'string' ? body.transactionId.trim() : '';
+      if (!transactionId) return fail('ต้องระบุ transactionId');
+
+      const order = await repo.getPaymentOrder(db, transactionId);
+      if (!order) return fail('ไม่พบรายการเติมชิปนี้', 404);
+
+      // เคลียร์ไปแล้ว (เช่น ตรวจซ้ำหลังสำเร็จ) — คืนยอดล่าสุดโดยไม่เติมซ้ำ
+      if (order.status === 'paid') {
+        const wallet = await repo.getWallet(db, order.playerId);
+        return json({ status: 'paid', chips: order.chips, balance: wallet.balance });
+      }
+
+      const result = await checkPromptPayCharge(env, transactionId);
+      if (!result.ok) return fail(result.error, result.status);
+      if (!result.data.paid) {
+        return json({ status: 'pending' });
+      }
+
+      const settled = await repo.settlePaymentOrder(db, transactionId);
+      if (!settled) {
+        // มีคำขออื่นเคลียร์ไปก่อนแล้วระหว่างที่เราตรวจ
+        const wallet = await repo.getWallet(db, order.playerId);
+        return json({ status: 'paid', chips: order.chips, balance: wallet.balance });
+      }
+
+      return json({
+        status: 'paid',
+        chips: settled.order.chips,
+        amountThb: settled.order.amountThb,
+        balance: settled.newBalance,
+      });
     }
 
     default:

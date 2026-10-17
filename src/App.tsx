@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useGameEngine } from './presentation/store/useGameStore';
 import { useAuth } from './presentation/store/useAuthStore';
+import { ActivityTicker } from './presentation/components/ActivityTicker';
 import { WalletBar } from './presentation/components/WalletBar';
 import { DiceCup3D } from './presentation/components/DiceCup3D';
 import { BetBoard } from './presentation/components/BetBoard';
@@ -14,7 +15,8 @@ import { UserProfileModal } from './presentation/components/UserProfileModal';
 import { AdminPanel } from './presentation/components/AdminPanel';
 import { AdminDashboard } from './presentation/components/AdminDashboard';
 import { FortuneChatBot } from './presentation/components/FortuneChatBot';
-import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
+import { TopUpModal } from './presentation/components/TopUpModal';
+import { WithdrawModal } from './presentation/components/WithdrawModal';
 import { hasAdminAccess } from './domain/constants/AdminConfig';
 import { Trophy, Percent, Flame, Sparkles, ShieldCheck } from 'lucide-react';
 
@@ -55,10 +57,6 @@ export const App: React.FC = () => {
     sum,
     lastOutcome,
     stats,
-    bailoutTimer,
-    canBailout,
-    dailyTimer,
-    canDailyClaim,
     isMuted,
     error,
     showStatsModal,
@@ -70,8 +68,6 @@ export const App: React.FC = () => {
     clearBet,
     toggleSound,
     rollDice,
-    claimBailout,
-    claimDaily,
     adminGrantChips,
     adminResetCooldowns,
     adminResetWallet,
@@ -85,6 +81,55 @@ export const App: React.FC = () => {
   // Determine current category
   const isTriple = dice[0] === dice[1] && dice[1] === dice[2];
   const category = isTriple ? 'TRIPLE' : sum >= 11 ? 'HIGH' : 'LOW';
+
+  // เติมชิปด้วยเงินจริง: ยังไม่ล็อกอิน → ไล่ไปล็อกอินก่อน (ยังไม่ตั้ง Google → เปิดหน้าตั้งค่า,
+  // ตั้งแล้ว → เด้ง Google One Tap) ถ้าล็อกอินแล้วจึงเปิดหน้าต่างชำระเงินพร้อมเพย์
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  // แจ้งเตือนบนหน้าจอ: One Tap ของ Google อาจไม่เด้งเลย (เช่น localhost ที่ยังไม่ได้ authorize origin
+  // หรือผู้ใช้เคยปิด prompt) จึงต้องมีข้อความให้เห็นเสมอ ไม่ปล่อยให้กดแล้วเงียบ
+  const [loginNotice, setLoginNotice] = useState(false);
+  useEffect(() => {
+    if (!loginNotice) return;
+    const t = setTimeout(() => setLoginNotice(false), 6000);
+    return () => clearTimeout(t);
+  }, [loginNotice]);
+
+  const handleTopUp = () => {
+    if (!user) {
+      setLoginNotice(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!isConfigured) {
+        setShowConfigModal(true);
+      } else {
+        window.google?.accounts?.id?.prompt();
+      }
+      return;
+    }
+    setShowTopUpModal(true);
+  };
+
+  const handleWithdraw = () => {
+    if (!user) {
+      setLoginNotice(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!isConfigured) {
+        setShowConfigModal(true);
+      } else {
+        window.google?.accounts?.id?.prompt();
+      }
+      return;
+    }
+    setShowWithdrawModal(true);
+  };
+
+  // ปิดหน้าต่างเติมชิปและซิงก์ยอดล่าสุด — ใช้ useCallback ให้ identity คงที่
+  // เพราะ App เรนเดอร์ใหม่ทุกวินาทีจากตัวนับถอยหลังใน useGameEngine
+  const closeTopUpModal = useCallback(() => setShowTopUpModal(false), []);
+  const handleTopUpCredited = useCallback(() => {
+    void syncState();
+  }, [syncState]);
 
   // Sync view with URL hash (#dashboard or #admin)
   useEffect(() => {
@@ -202,11 +247,9 @@ export const App: React.FC = () => {
       {/* 1. Full-Width Responsive Header */}
       <WalletBar
         balance={balance}
-        canBailout={canBailout}
-        bailoutTimer={bailoutTimer}
-        canDailyClaim={canDailyClaim}
-        dailyTimer={dailyTimer}
         isMuted={isMuted}
+        onTopUp={handleTopUp}
+        onWithdraw={handleWithdraw}
         user={user}
         isConfigured={isConfigured}
         clientId={clientId}
@@ -219,8 +262,6 @@ export const App: React.FC = () => {
         onCredentialSuccess={(credential) => {
           loginWithCredential(credential);
         }}
-        onClaimBailout={claimBailout}
-        onClaimDaily={claimDaily}
         onToggleSound={toggleSound}
         onOpenStats={() => setShowStatsModal(true)}
         onReset={resetAllData}
@@ -228,6 +269,7 @@ export const App: React.FC = () => {
         isCreator={user?.role === 'creator'}
         onOpenAdmin={() => setShowAdminPanel(true)}
       />
+      <ActivityTicker />
 
       {/* 2. Main Game Viewport: Dual Mobile & Desktop Layout */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5 lg:py-6">
@@ -287,7 +329,6 @@ export const App: React.FC = () => {
             <div className="w-full bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-md text-[11px] text-slate-400 space-y-1.5">
               <div className="font-semibold text-slate-300 flex items-center justify-between">
                 <span>สรุปกติกาการจ่ายรางวัล:</span>
-                <span className="text-amber-400">Zero Real Money</span>
               </div>
               <div className="grid grid-cols-3 gap-2 pt-1 text-center">
                 <div className="p-1.5 rounded-lg bg-blue-950/40 border border-blue-500/20">
@@ -359,7 +400,7 @@ export const App: React.FC = () => {
                     คอนโซลวางเดิมพัน (Betting Rack)
                   </h2>
                 </div>
-                <span className="text-xs text-slate-400 font-medium">ขั้นต่ำ 10 / สูงสุด 500</span>
+                <span className="text-xs text-slate-400 font-medium">ขั้นต่ำ 10 / สูงสุดเท่าที่มี</span>
               </div>
 
               {/* Responsive Bet Board */}
@@ -380,9 +421,6 @@ export const App: React.FC = () => {
           </aside>
         </div>
       </main>
-
-      {/* 3. Full-Width Disclaimer Footer */}
-      <DisclaimerBanner />
 
       {/* 4. Statistics Modal */}
       <StatsModal
@@ -434,6 +472,31 @@ export const App: React.FC = () => {
         }}
         onClose={() => setShowProfileModal(false)}
         onLogout={logout}
+      />
+
+      {loginNotice && !user && (
+        <div
+          role="alert"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-3 rounded-xl bg-amber-500 text-slate-950 text-sm font-bold shadow-xl"
+        >
+          กรุณาเข้าสู่ระบบด้วย Google ก่อนเติมชิป (ปุ่มอยู่มุมขวาบน)
+        </div>
+      )}
+
+      {/* 7.1 Top-Up Modal (เติมชิปด้วยเงินจริงผ่าน PromptPay) */}
+      <TopUpModal
+        isOpen={showTopUpModal && Boolean(user)}
+        balance={balance}
+        user={user}
+        onClose={closeTopUpModal}
+        onCredited={handleTopUpCredited}
+      />
+
+      {/* 7.2 Withdraw Modal (ถอนเงินรางวัล) */}
+      <WithdrawModal
+        isOpen={showWithdrawModal && Boolean(user)}
+        balance={balance}
+        onClose={() => setShowWithdrawModal(false)}
       />
 
       {/* 8. Admin/Creator Console */}

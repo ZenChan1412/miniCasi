@@ -20,6 +20,13 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 }) => {
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
+  // เก็บ callback ไว้ใน ref: App เรนเดอร์ใหม่ทุกวินาที (ตัวนับถอยหลัง) ทำให้ onCredentialSuccess
+  // เป็นฟังก์ชันใหม่ทุกครั้ง ถ้าใส่ใน deps ของ effect ปุ่ม Google จะถูกล้างแล้ววาดใหม่ทุกวินาที (กระพริบ)
+  const onCredentialRef = useRef(onCredentialSuccess);
+  useEffect(() => {
+    onCredentialRef.current = onCredentialSuccess;
+  }, [onCredentialSuccess]);
+
   // Initialize and render Google Identity Services button when configured
   useEffect(() => {
     if (!isConfigured || user || !clientId) return;
@@ -31,7 +38,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
             client_id: clientId,
             callback: (response: { credential: string }) => {
               if (response && response.credential) {
-                onCredentialSuccess(response.credential);
+                onCredentialRef.current(response.credential);
               }
             },
             auto_select: false,
@@ -69,7 +76,7 @@ export const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 
       return () => clearInterval(interval);
     }
-  }, [isConfigured, user, clientId, onCredentialSuccess]);
+  }, [isConfigured, user, clientId]);
 
   // Case 1: User is already logged in
   if (user) {

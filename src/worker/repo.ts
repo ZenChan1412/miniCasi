@@ -18,6 +18,7 @@ export const APP_TABLES = [
   'user_bans',
   'role_overrides',
   'audit_logs',
+  'payment_orders',
 ] as const;
 
 function now(): number {
@@ -227,7 +228,14 @@ export async function resetWallet(db: D1Database, playerId: string): Promise<Wal
 
 interface TransactionInput {
   walletId: string;
-  txnType: 'INITIAL_GRANT' | 'BET_DEDUCT' | 'BET_PAYOUT' | 'BAILOUT' | 'DAILY_BONUS' | 'RESET';
+  txnType:
+    | 'INITIAL_GRANT'
+    | 'BET_DEDUCT'
+    | 'BET_PAYOUT'
+    | 'BAILOUT'
+    | 'DAILY_BONUS'
+    | 'RESET'
+    | 'PURCHASE';
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
@@ -254,6 +262,180 @@ async function recordTransaction(db: D1Database, input: TransactionInput): Promi
       now()
     )
     .run();
+}
+
+/* ------------------------------------------------------------------ */
+/* Payment orders (เติมชิปด้วยเงินจริงผ่าน PromptPay)                   */
+/* ------------------------------------------------------------------ */
+
+export type PaymentOrderStatus = 'pending' | 'paid' | 'expired' | 'failed';
+
+export interface PaymentOrder {
+  id: string;
+  playerId: string;
+  transactionId: string;
+  amountThb: number;
+  chips: number;
+  status: PaymentOrderStatus;
+  qrUrl: string | null;
+  payload: string | null;
+  expiresAt: number | null;
+  createdAt: number;
+  paidAt: number | null;
+}
+
+export interface CreatePaymentOrderInput {
+  playerId: string;
+  transactionId: string;
+  chips: number;
+  amountThb: number;
+  qrUrl?: string;
+  payload?: string;
+  expiresAt?: number;
+}
+
+interface PaymentOrderRow {
+  id: string;
+  player_id: string;
+  transaction_id: string;
+  amount_thb: number;
+  chips: number;
+  status: PaymentOrderStatus;
+  qr_url: string | null;
+  payload: string | null;
+  expires_at: number | null;
+  created_at: number;
+  paid_at: number | null;
+}
+
+function rowToPaymentOrder(row: PaymentOrderRow): PaymentOrder {
+  return {
+    id: row.id,
+    playerId: row.player_id,
+    transactionId: row.transaction_id,
+    amountThb: row.amount_thb,
+    chips: row.chips,
+    status: row.status,
+    qrUrl: row.qr_url,
+    payload: row.payload,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+    paidAt: row.paid_at,
+  };
+}
+
+export async function createPaymentOrder(
+  db: D1Database,
+  input: CreatePaymentOrderInput
+): Promise<PaymentOrder> {
+  await ensurePlayer(db, input.playerId);
+
+  const order: PaymentOrder = {
+    id: newId('pay'),
+    playerId: input.playerId,
+    transactionId: input.transactionId,
+    amountThb: input.amountThb,
+    chips: input.chips,
+    status: 'pending',
+    qrUrl: input.qrUrl ?? null,
+    payload: input.payload ?? null,
+    expiresAt: input.expiresAt ?? null,
+    createdAt: now(),
+    paidAt: null,
+  };
+
+  await db
+    .prepare(
+      `INSERT INTO payment_orders
+         (id, player_id, transaction_id, amount_thb, chips, status, qr_url, payload, expires_at, created_at, paid_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, NULL)
+       ON CONFLICT (transaction_id) DO NOTHING`
+    )
+    .bind(
+      order.id,
+      order.playerId,
+      order.transactionId,
+      order.amountThb,
+      order.chips,
+      order.qrUrl,
+      order.payload,
+      order.expiresAt,
+      order.createdAt
+    )
+    .run();
+
+  return order;
+}
+
+export async function getPaymentOrder(
+  db: D1Database,
+  transactionId: string
+): Promise<PaymentOrder | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, player_id, transaction_id, amount_thb, chips, status,
+              qr_url, payload, expires_at, created_at, paid_at
+         FROM payment_orders WHERE transaction_id = ?`
+    )
+    .bind(transactionId)
+    .first<PaymentOrderRow>();
+
+  return row ? rowToPaymentOrder(row) : null;
+}
+
+/**
+ * เคลียร์ยอดเมื่อ Gateway ยืนยันว่าชำระสำเร็จ
+ *
+ * ทำเป็นสองจังหวะโดย "จองสิทธิ์" ด้วย UPDATE ... WHERE status = 'pending' ก่อน
+ * ถ้า changes = 0 แปลว่ารายการนี้ถูกเคลียร์ไปแล้ว (หรือไม่มีอยู่) จึงไม่เติมชิปซ้ำ
+ * แม้ผู้ใช้จะกดตรวจสอบหลายครั้งหรือเปิดหลายแท็บพร้อมกัน
+ */
+export async function settlePaymentOrder(
+  db: D1Database,
+  transactionId: string
+): Promise<{ order: PaymentOrder; newBalance: number } | null> {
+  const claim = await db
+    .prepare(
+      `UPDATE payment_orders SET status = 'paid', paid_at = ?
+        WHERE transaction_id = ? AND status = 'pending'`
+    )
+    .bind(now(), transactionId)
+    .run();
+
+  if (!claim.meta.changes) {
+    return null;
+  }
+
+  const order = await getPaymentOrder(db, transactionId);
+  if (!order) return null;
+
+  const wallet = await getWallet(db, order.playerId);
+  const newBalance = wallet.balance + order.chips;
+
+  await db
+    .prepare(
+      `UPDATE virtual_wallets
+          SET balance = ?, version = version + 1, updated_at = ?
+        WHERE player_id = ?`
+    )
+    .bind(newBalance, now(), order.playerId)
+    .run();
+
+  await recordTransaction(db, {
+    walletId: wallet.walletId,
+    txnType: 'PURCHASE',
+    amount: order.chips,
+    balanceBefore: wallet.balance,
+    balanceAfter: newBalance,
+    notes: `เติมชิปด้วย PromptPay สำเร็จ (${order.amountThb} บาท · ${order.transactionId})`,
+  });
+
+  await db
+    .prepare('UPDATE players SET last_active_at = ? WHERE id = ?')
+    .bind(now(), order.playerId)
+    .run();
+
+  return { order, newBalance };
 }
 
 /* ------------------------------------------------------------------ */

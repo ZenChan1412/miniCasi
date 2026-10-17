@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BetOption } from '../../domain/entities/Bet';
-import { Sparkles, RotateCcw, Play } from 'lucide-react';
+import { GAME_RULES } from '../../domain/constants/GameRules';
+import { Sparkles, RotateCcw, Play, Pencil } from 'lucide-react';
 
 interface BetBoardProps {
   selectedOption: BetOption | null;
@@ -25,6 +26,23 @@ export const BetBoard: React.FC<BetBoardProps> = ({
   onClearBet,
   onRoll,
 }) => {
+  const [draft, setDraft] = useState(String(selectedAmount));
+
+  useEffect(() => {
+    setDraft(String(selectedAmount));
+  }, [selectedAmount]);
+
+  const commitDraft = () => {
+    const n = Math.floor(Number(draft));
+    if (!Number.isFinite(n) || n <= 0) {
+      setDraft(String(selectedAmount));
+      return;
+    }
+    const clamped = Math.max(GAME_RULES.MIN_BET, Math.min(balance, n));
+    setDraft(String(clamped));
+    if (clamped !== selectedAmount) onSelectAmount(clamped);
+  };
+
   return (
     <div className="w-full space-y-4">
       {/* Bet Options Grid */}
@@ -104,10 +122,35 @@ export const BetBoard: React.FC<BetBoardProps> = ({
 
       {/* Chip Denominations Selector */}
       <div className="bg-slate-900/70 p-3 rounded-2xl border border-slate-800 backdrop-blur-sm">
-        <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-          <span>เลือกจำนวนชิปเดิมพัน:</span>
-          <span className="text-amber-400 font-semibold">{selectedAmount} ชิป</span>
-        </div>
+        <label className="block mb-3 p-2.5 rounded-xl border-2 border-dashed border-amber-400/60 bg-amber-400/5 transition-colors focus-within:border-amber-300 focus-within:bg-amber-400/10 focus-within:shadow-lg focus-within:shadow-amber-500/20">
+          <span className="flex items-center justify-between text-[11px] font-semibold text-amber-300 mb-1.5">
+            <span className="flex items-center gap-1">
+              <Pencil className="w-3.5 h-3.5" />
+              กรอกจำนวนชิปเองได้
+            </span>
+            <span className="text-slate-400 font-normal">ขั้นต่ำ {GAME_RULES.MIN_BET} • สูงสุดเท่าที่มี</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={GAME_RULES.MIN_BET}
+              max={balance}
+              value={draft}
+              disabled={isRolling}
+              placeholder="พิมพ์จำนวนชิป"
+              onChange={(e) => setDraft(e.target.value)}
+              onFocus={(e) => e.currentTarget.select()}
+              onBlur={commitDraft}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                e.stopPropagation();
+              }}
+              className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-950 border border-amber-400/50 text-center text-xl font-extrabold text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            />
+            <span className="text-amber-300 font-bold">ชิป</span>
+          </span>
+        </label>
 
         <div className="flex items-center justify-between gap-1.5">
           {CHIP_DENOMINATIONS.map((chip) => {
@@ -137,7 +180,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
           <button
             type="button"
             disabled={isRolling || balance < 10}
-            onClick={() => onSelectAmount(Math.min(500, balance))}
+            onClick={() => onSelectAmount(balance)}
             className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-800 text-amber-400 hover:bg-slate-700 border border-amber-500/30 transition-all cursor-pointer"
           >
             MAX

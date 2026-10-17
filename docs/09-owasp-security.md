@@ -31,7 +31,7 @@ flowchart LR
 | **A01: Broken Access Control** | การดัดแปลงยอดชิปในเบราว์เซอร์ | ผู้เล่นใช้ Console แก้ไขยอดเงินใน LocalStorage | **Medium** | ใช้ HMAC-SHA256 พร้อม Dynamic Salt ตรวจจับการปลอมแปลง | แก้ไขแล้ว |
 | **A02: Cryptographic Failures** | อัลกอริทึมการสุ่มตัวเลข | ใช้ `Math.random()` ธรรมดาที่คาดเดาผลได้ | **High** (หากมี) | ใช้ Web Crypto API `crypto.getRandomValues` 100% | ปลอดภัย |
 | **A03: Injection & Validation** | การส่งยอดเดิมพันติดลบ/ทศนิยม | ใส่ตัวเลขผิดประเภททำให้ชิปเพิ่มหรือ NaN | **Medium** | ตรวจสอบผ่าน Value Object `Bet`: `Number.isInteger()`, Min/Max | ปลอดภัย |
-| **A04: Insecure Design** | กลไกเสพติด / การพนันจริง | อาจเข้าข่ายการพนันผิดกฎหมาย | **Critical** (หากมี) | ปราศจาก Payment Gateway มีระบบชิปฟรีไม่จำกัด และมีข้อความชี้แจง | ปลอดภัย |
+| **A04: Insecure Design** | กลไกเสพติด / การพนันจริง | อาจเข้าข่ายการพนันผิดกฎหมาย | **Critical** (หากมี) | ปราศจาก Payment Gateway มีระบบชิปไม่จำกัด และมีข้อความชี้แจง | ปลอดภัย |
 | **A05: Security Misconfiguration** | Security Headers บน Cloudflare | ขาด CSP, HSTS, X-Content-Type-Options | **Low** | กำหนดไฟล์ `public/_headers` ให้มี Content Security Policy เต็มรูปแบบ | ดำเนินการแล้ว |
 | **A06: Vulnerable Dependencies** | Supply Chain Security | มีช่องโหว่ในโมดูลของ npm | **Low** | ล็อกแพ็กเกจด้วย `bun.lock` และรัน `bun pm audit` | ผ่านสมบูรณ์ |
 | **A08: Software & Data Integrity** | การแทรกแซงซอร์สโค้ดระหว่างส่งมอบ | มีการสอดไส้โค้ดจากบุคคลที่สาม | **Medium** | รัน CI/CD Auto-deploy ผ่าน GitHub Actions จาก Branch ที่มีการป้องกัน | ปลอดภัย |

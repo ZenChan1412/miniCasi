@@ -137,7 +137,6 @@ export const DiceCup3D: React.FC<DiceCup3DProps> = ({
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50" />
           <span className="font-bold tracking-tight text-white">โต๊ะทอยลูกเต๋าจำลอง</span>
-          <span className="text-[10px] text-emerald-400/70 hidden sm:inline">(CASUAL FELT TABLE)</span>
         </span>
         <span className="text-[11px] text-slate-400 font-mono">CSPRNG Uniform Physics</span>
       </div>

@@ -5,7 +5,6 @@
 export const GAME_RULES = {
   // กฎการเดิมพัน (BR-02)
   MIN_BET: 10,
-  MAX_BET: 500,
 
   // อัตราการจ่ายเงินรางวัลจำลอง (BR-03)
   PAYOUT_MULTIPLIER_HIGH_LOW: 1, // 1:1 (ได้ทุนคืน + กำไร 1 เท่า)
