@@ -34,7 +34,7 @@ export const HistoryRoadmap: React.FC<HistoryRoadmapProps> = ({ roadmap }) => {
                 className="flex flex-col items-center flex-shrink-0 group relative"
               >
                 <div
-                  className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shadow-sm transition-transform group-hover:scale-110 ${
+                  className={`min-w-9 h-7 px-1.5 rounded-xl flex items-center justify-center text-xs font-black shadow-sm transition-transform group-hover:scale-110 ${
                     isTriple
                       ? 'bg-purple-600 text-white ring-1 ring-purple-300'
                       : isHigh
@@ -43,7 +43,7 @@ export const HistoryRoadmap: React.FC<HistoryRoadmapProps> = ({ roadmap }) => {
                   }`}
                   title={`แต้ม ${item.dice.join('+')} = ${item.sum} (${item.category})`}
                 >
-                  {isTriple ? 'ตง' : isHigh ? 'ส' : 'ต'}
+                  {isTriple ? 'ตอง' : isHigh ? 'สูง' : 'ต่ำ'}
                 </div>
                 <span className="text-[10px] text-slate-400 font-semibold mt-0.5">
                   {item.sum}

@@ -1,6 +1,7 @@
 import { Env } from './types';
 import * as repo from './repo';
 import { GUEST_ID } from './repo';
+import { askFortuneGod } from './fortune';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -42,6 +43,13 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     case 'GET /api/health': {
       const report = await repo.checkHealth(db);
       return json(report, report.ok ? 200 : 503);
+    }
+
+    /* ---------------- เทพเจ้าลูกเต๋า (Gemini) ---------------- */
+    case 'POST /api/chat': {
+      const body = await readBody(request);
+      const result = await askFortuneGod(env, body.messages);
+      return 'reply' in result ? json(result) : fail(result.error, result.status);
     }
 
     /* ---------------- Wallet ---------------- */

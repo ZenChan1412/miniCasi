@@ -35,4 +35,7 @@ export interface AssetsBinding {
 export interface Env {
   DB: D1Database;
   ASSETS: AssetsBinding;
+  /** ตั้งใน .env / .dev.vars (local) หรือ `wrangler secret put` (production) */
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
 }

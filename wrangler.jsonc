@@ -17,6 +17,10 @@
       "migrations_dir": "migrations"
     }
   ],
+  "vars": {
+    "GEMINI_API_KEY": "",
+    "GEMINI_MODEL": ""
+  },
   "observability": {
     "enabled": true
   }

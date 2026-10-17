@@ -172,7 +172,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
 
         {/* Header Badge */}
         <div className="text-center pt-2 pb-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-2">
+          <div className="inline-flex max-w-full items-center gap-2 px-2 sm:px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-2 whitespace-nowrap">
             {isJackpot ? (
               <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black shadow-lg shadow-amber-400/30 flex items-center gap-1.5 animate-bounce">
                 <Sparkles className="w-4 h-4" />
@@ -190,7 +190,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             )}
           </div>
 
-          <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight whitespace-nowrap">
             {isJackpot
               ? '🎉 ชนะรางวัลใหญ่ 30 เท่า!'
               : won
@@ -216,21 +216,26 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             <ResultDiceBox value={dice[2]} />
           </div>
 
-          {/* Sum & Category Result Pill */}
-          <div className="flex items-center gap-2 pt-1">
-            <div className="px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-sm font-bold text-slate-200">
-              แต้มรวม: <span className="text-amber-400 text-base">{sum}</span>
+          {/* ผลสูง/ต่ำ/ตอง ตัวใหญ่ + แอนิเมชัน */}
+          <div
+            key={`${dice.join('-')}`}
+            className={`verdict-pop relative overflow-hidden w-full max-w-xs text-center rounded-2xl py-3 px-4 border-2 ${
+              isTriple
+                ? 'bg-gradient-to-br from-purple-600 via-fuchsia-500 to-amber-400 border-amber-200 text-white'
+                : category === 'HIGH'
+                ? 'bg-gradient-to-br from-red-600 via-rose-500 to-orange-400 border-red-200 text-white'
+                : 'bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 border-sky-200 text-white'
+            }`}
+            style={{ ['--verdict-color' as string]: isTriple ? '#d946ef' : category === 'HIGH' ? '#ef4444' : '#38bdf8' }}
+          >
+            <span className="verdict-shine pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-white/40 blur-md" />
+            <div className="relative text-5xl sm:text-6xl font-black leading-none whitespace-nowrap drop-shadow-[0_3px_6px_rgba(0,0,0,0.45)]">
+              {isTriple ? 'ตอง' : category === 'HIGH' ? 'สูง' : 'ต่ำ'}
             </div>
-            <div
-              className={`px-3 py-1 rounded-xl text-sm font-black uppercase tracking-wider ${
-                isTriple
-                  ? 'bg-purple-600 text-purple-100 ring-2 ring-purple-300'
-                  : category === 'HIGH'
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-              }`}
-            >
-              {isTriple ? 'ตอง (TRIPLE)' : category === 'HIGH' ? 'สูง (HIGH)' : 'ต่ำ (LOW)'}
+            <div className="relative mt-1.5 text-sm font-bold tracking-widest whitespace-nowrap text-white/90">
+              แต้มรวม <span className="text-xl font-black text-white">{sum}</span>
+              <span className="mx-1.5">•</span>
+              {isTriple ? 'TRIPLE' : category === 'HIGH' ? 'HIGH' : 'LOW'}
             </div>
           </div>
         </div>
@@ -238,7 +243,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         {/* Round Financial & Stats Breakdown */}
         <div className="bg-slate-900/60 p-3.5 sm:p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
           <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-            <span className="text-slate-400">หน้าเดิมพันของคุณ:</span>
+            <span className="text-slate-400 whitespace-nowrap">หน้าเดิมพันของคุณ:</span>
             <span className="font-bold text-white flex items-center gap-1.5">
               <span
                 className={`w-2 h-2 rounded-full ${
@@ -254,7 +259,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           </div>
 
           <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-            <span className="text-slate-400">ผลกำไรสุทธิรอบนี้:</span>
+            <span className="text-slate-400 whitespace-nowrap">ผลกำไรสุทธิรอบนี้:</span>
             <span
               className={`text-sm font-extrabold ${
                 outcome.netGain > 0
@@ -269,7 +274,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           </div>
 
           <div className="flex items-center justify-between pt-0.5">
-            <span className="text-slate-400">ยอดชิปคงเหลือใหม่:</span>
+            <span className="text-slate-400 whitespace-nowrap">ยอดชิปคงเหลือใหม่:</span>
             <span className="text-sm font-black text-amber-300">
               {balance.toLocaleString()} CHIPS
             </span>
@@ -283,17 +288,17 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2.5 mt-5">
+        <div className="flex flex-col gap-2.5 mt-5">
           <button
             type="button"
             onClick={onPlayAgain}
-            className={`flex-1 py-3.5 px-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
+            className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm sm:text-base whitespace-nowrap flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
               won
                 ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 text-slate-950 shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98]'
             }`}
           >
-            <Play className="w-4 h-4 fill-current" />
+            <Play className="w-4 h-4 fill-current shrink-0" />
             <span>ทอยต่อทันที ({betAmount} ชิป)</span>
             <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-slate-950/20 text-slate-900 rounded border border-slate-900/30">
               Space
@@ -303,7 +308,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-xs sm:text-sm border border-slate-700 transition-colors cursor-pointer text-center"
+            className="w-full py-3 px-5 rounded-2xl bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-xs sm:text-sm whitespace-nowrap border border-slate-700 transition-colors cursor-pointer text-center"
           >
             เปลี่ยนยอดแทง / หน้าโต๊ะ
           </button>

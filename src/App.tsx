@@ -13,6 +13,7 @@ import { GoogleAuthButton } from './presentation/components/GoogleAuthButton';
 import { UserProfileModal } from './presentation/components/UserProfileModal';
 import { AdminPanel } from './presentation/components/AdminPanel';
 import { AdminDashboard } from './presentation/components/AdminDashboard';
+import { FortuneChatBot } from './presentation/components/FortuneChatBot';
 import { DisclaimerBanner } from './presentation/components/DisclaimerBanner';
 import { hasAdminAccess } from './domain/constants/AdminConfig';
 import { Trophy, Percent, Flame, Sparkles, ShieldCheck } from 'lucide-react';
@@ -258,6 +259,9 @@ export const App: React.FC = () => {
 
           {/* History Roadmap */}
           <HistoryRoadmap roadmap={stats.roadmap} />
+
+          {/* ้หอทบอทแอย้ยผล (Mock) — เดส์ตป้ผเแบนเแแถ inline / มึ้จึีุเแบนปุมเแได Modal */}
+          <FortuneChatBot />
         </div>
 
         {/* Desktop View (>= lg): Expansive Casino Table & Betting Dashboard */}
@@ -278,6 +282,28 @@ export const App: React.FC = () => {
 
             {/* Roadmap History Stream */}
             <HistoryRoadmap roadmap={stats.roadmap} />
+
+            {/* Game Rules Quick Reference Card */}
+            <div className="w-full bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-md text-[11px] text-slate-400 space-y-1.5">
+              <div className="font-semibold text-slate-300 flex items-center justify-between">
+                <span>สรุปกติกาการจ่ายรางวัล:</span>
+                <span className="text-amber-400">Zero Real Money</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                <div className="p-1.5 rounded-lg bg-blue-950/40 border border-blue-500/20">
+                  <div className="text-blue-300 font-bold">ต่ำ (4-10)</div>
+                  <div className="text-[10px] text-slate-400">จ่าย 1:1</div>
+                </div>
+                <div className="p-1.5 rounded-lg bg-purple-950/40 border border-purple-500/20">
+                  <div className="text-amber-300 font-bold">ตอง (1-6)</div>
+                  <div className="text-[10px] text-slate-400">จ่าย 30:1</div>
+                </div>
+                <div className="p-1.5 rounded-lg bg-red-950/40 border border-red-500/20">
+                  <div className="text-red-300 font-bold">สูง (11-17)</div>
+                  <div className="text-[10px] text-slate-400">จ่าย 1:1</div>
+                </div>
+              </div>
+            </div>
 
             {/* Desktop Quick-Stats Strip */}
             <div className="grid grid-cols-4 gap-3 pt-1">
@@ -348,27 +374,8 @@ export const App: React.FC = () => {
                 onRoll={rollDice}
               />
 
-              {/* Game Rules Quick Reference Card */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-400 space-y-1.5">
-                <div className="font-semibold text-slate-300 flex items-center justify-between">
-                  <span>สรุปกติกาการจ่ายรางวัล:</span>
-                  <span className="text-amber-400">Zero Real Money</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                  <div className="p-1.5 rounded-lg bg-blue-950/40 border border-blue-500/20">
-                    <div className="text-blue-300 font-bold">ต่ำ (4-10)</div>
-                    <div className="text-[10px] text-slate-400">จ่าย 1:1</div>
-                  </div>
-                  <div className="p-1.5 rounded-lg bg-purple-950/40 border border-purple-500/20">
-                    <div className="text-amber-300 font-bold">ตอง (1-6)</div>
-                    <div className="text-[10px] text-slate-400">จ่าย 30:1</div>
-                  </div>
-                  <div className="p-1.5 rounded-lg bg-red-950/40 border border-red-500/20">
-                    <div className="text-red-300 font-bold">สูง (11-17)</div>
-                    <div className="text-[10px] text-slate-400">จ่าย 1:1</div>
-                  </div>
-                </div>
-              </div>
+              {/* ้หอทบอทแอย้ยผล (Mock) — เดส์ตป้ผเแบนเแแถ inline / มึ้จึีุเแบนปุมเแได Modal */}
+              <FortuneChatBot />
             </div>
           </aside>
         </div>
