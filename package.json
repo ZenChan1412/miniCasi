@@ -8,7 +8,11 @@
     "preview": "vite preview",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "deploy:cf": "wrangler deploy"
+    "deploy:cf": "vite build && wrangler deploy",
+    "dev:cf": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply mini-casino-db --local",
+    "db:migrate": "wrangler d1 migrations apply mini-casino-db --remote",
+    "db:health": "curl -s http://localhost:8787/api/health"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

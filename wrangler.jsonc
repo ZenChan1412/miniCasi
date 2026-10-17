@@ -1,10 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mini-casino-game",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "html_handling": "auto-trailing-slash"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mini-casino-db",
+      "database_id": "7aa283f3-ae4b-42bc-8337-930851021a00",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
   }
 }

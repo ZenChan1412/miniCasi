@@ -9,6 +9,7 @@ import { HistoryRoadmap } from './presentation/components/HistoryRoadmap';
 import { StatsModal } from './presentation/components/StatsModal';
 import { ResultModal } from './presentation/components/ResultModal';
 import { GoogleConfigModal } from './presentation/components/GoogleConfigModal';
+import { GoogleAuthButton } from './presentation/components/GoogleAuthButton';
 import { UserProfileModal } from './presentation/components/UserProfileModal';
 import { AdminPanel } from './presentation/components/AdminPanel';
 import { AdminDashboard } from './presentation/components/AdminDashboard';
@@ -120,20 +121,13 @@ export const App: React.FC = () => {
   }, [isRolling, betOption, balance, betAmount, rollDice]);
 
   // Dedicated Full-Page Admin / Creator Dashboard View
+  // ต้องมีผู้ใช้ที่ล็อกอินจริงเท่านั้น — เดิมโค้ดนี้สร้างโปรไฟล์ผู้ดูแลระบบปลอมขึ้นมาแทน
+  // เมื่อไม่มี user ทำให้เข้าหน้า Dashboard ได้โดยไม่ได้ล็อกอิน
   if (view === 'dashboard') {
-    if (isAdmin || isCreator) {
+    if (user && (isAdmin || isCreator)) {
       return (
         <AdminDashboard
-          currentUser={
-            user || {
-              id: isCreator ? 'creator_demo' : 'admin_demo',
-              name: isCreator ? 'Songpon (Creator)' : 'Seree (Admin)',
-              email: isCreator ? 'songpon.official@gmail.com' : 'seree999@gmail.com',
-              provider: 'google',
-              role: isCreator ? 'creator' : 'admin',
-              loggedInAt: Date.now(),
-            }
-          }
+          currentUser={user}
           isCreator={isCreator}
           onReturnToGame={() => {
             setView('game');
@@ -176,23 +170,25 @@ export const App: React.FC = () => {
             กลับสู่หน้าเกม
           </button>
           {!user ? (
-            <button
-              type="button"
-              onClick={() => setShowConfigModal(true)}
-              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs cursor-pointer hover:brightness-110 transition-all shadow-lg shadow-amber-500/20"
-            >
-              เข้าสู่ระบบ
-            </button>
+            /* ปุ่ม Sign in with Google ของจริง — เดิมปุ่มนี้เปิด GoogleConfigModal
+               ซึ่งเป็นหน้าสอน developer ตั้งค่า .env ผู้เล่นจึงล็อกอินไม่ได้เลย */
+            <GoogleAuthButton
+              user={null}
+              isConfigured={isConfigured}
+              clientId={clientId}
+              onOpenProfile={() => setShowProfileModal(true)}
+              onOpenConfig={() => setShowConfigModal(true)}
+              onCredentialSuccess={(credential) => {
+                loginWithCredential(credential);
+              }}
+            />
           ) : (
             <button
               type="button"
-              onClick={() => {
-                logout();
-                setShowConfigModal(true);
-              }}
+              onClick={() => logout()}
               className="py-2.5 px-5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 font-bold text-xs cursor-pointer transition-colors"
             >
-              สลับบัญชี Google
+              ออกจากระบบเพื่อสลับบัญชี
             </button>
           )}
         </div>
@@ -408,8 +404,10 @@ export const App: React.FC = () => {
       />
 
       {/* 6. Google Config Setup Modal */}
+      {/* หน้าสอนตั้งค่า Google OAuth เป็นงานของ developer ไม่ใช่ของผู้เล่น
+          จึงแสดงเฉพาะตอนที่ยังไม่ได้ตั้ง VITE_GOOGLE_CLIENT_ID */}
       <GoogleConfigModal
-        isOpen={showConfigModal}
+        isOpen={showConfigModal && !isConfigured}
         onClose={() => setShowConfigModal(false)}
         onMockLogin={(mock) => loginWithMock(mock)}
       />

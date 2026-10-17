@@ -95,16 +95,27 @@ describe('GoogleAuthService Lifecycle', () => {
   });
 
   it('ควรล็อกอินด้วยบัญชีจำลอง (Mock Login) ได้สำเร็จ', async () => {
-    const user = await authService.loginWithMock({
-      name: 'Tester User',
-      email: 'tester@gmail.com',
-    });
+    const user = await authService.loginWithMock({ name: 'Tester User' });
 
     expect(user).toBeDefined();
     expect(user.name).toBe('Tester User');
-    expect(user.email).toBe('tester@gmail.com');
     expect(user.provider).toBe('mock');
     expect(authService.getCurrentUser()?.id).toBe(user.id);
+  });
+
+  it('Mock Login ต้องไม่ให้ปลอมตัวเป็น Admin หรือ Creator ได้', async () => {
+    // การล็อกอินแบบจำลองไม่มีการยืนยันตัวตน จึงต้องเป็น player เสมอ
+    // แม้ผู้เรียกจะพยายามยัด id / email / role ของผู้ดูแลระบบเข้ามา
+    const user = await authService.loginWithMock({
+      id: 'google_creator_songpon',
+      email: 'songpon.official@gmail.com',
+      role: 'creator',
+      name: 'ผู้บุกรุก',
+    });
+
+    expect(user.role).toBe('player');
+    expect(user.id).not.toBe('google_creator_songpon');
+    expect(user.email).not.toBe('songpon.official@gmail.com');
   });
 
   it('ควรออกจากระบบ (Logout) และล้างข้อมูลผู้ใช้ได้สำเร็จ', async () => {
@@ -143,17 +154,24 @@ describe('Creator & Admin Role Assignment (Email-Checked After Google Login)', (
     expect(ADMIN_EMAILS).toContain('seree@gmail.com');
     expect(isAdminEmail('seree999@gmail.com')).toBe(true);
     expect(isAdminEmail('seree@gmail.com')).toBe(true);
-    expect(isAdminEmail('seree')).toBe(true);
     expect(resolveRole('seree999@gmail.com')).toBe('admin');
     expect(resolveRole('seree@gmail.com')).toBe('admin');
-    expect(resolveRole('seree')).toBe('admin');
+  });
+
+  it('อีเมลที่แค่มีคำว่า seree / songpon อยู่ข้างใน ต้องไม่ได้สิทธิ์', () => {
+    // กันการยกระดับสิทธิ์จากการเทียบอีเมลแบบ substring
+    expect(isAdminEmail('seree')).toBe(false);
+    expect(isAdminEmail('seree.fan@gmail.com')).toBe(false);
+    expect(isAdminEmail('notseree999@gmail.com')).toBe(false);
+    expect(isCreatorEmail('songpon.official')).toBe(false);
+    expect(isCreatorEmail('fakesongpon.official@gmail.com')).toBe(false);
+    expect(resolveRole('songpon.official@evil.com')).toBe('player');
   });
 
   it('ตรวจสอบ Email แบบ Case-insensitive และตัดช่องว่าง', () => {
     expect(isAdminEmail('  Seree999@Gmail.COM ')).toBe(true);
     expect(isAdminEmail('  Seree@Gmail.COM ')).toBe(true);
     expect(isCreatorEmail('  Songpon.Official@gmail.com  ')).toBe(true);
-    expect(isCreatorEmail('songpon.official')).toBe(true);
     expect(isAdminEmail('other@gmail.com')).toBe(false);
     expect(isAdminEmail('')).toBe(false);
     expect(isAdminEmail(null)).toBe(false);

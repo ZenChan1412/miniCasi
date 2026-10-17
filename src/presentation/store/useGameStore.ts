@@ -5,8 +5,7 @@ import { PlayerStats, StreakTracker } from '../../domain/services/StreakTracker'
 import { PlaceBetAndRollUseCase } from '../../application/usecases/PlaceBetAndRoll';
 import { ClaimEmergencyBailoutUseCase } from '../../application/usecases/ClaimEmergencyBailout';
 import { ClaimDailyRewardUseCase } from '../../application/usecases/ClaimDailyReward';
-import { LocalStorageWalletRepo } from '../../infrastructure/storage/LocalStorageWalletRepo';
-import { LocalStorageHistoryRepo } from '../../infrastructure/storage/LocalStorageHistoryRepo';
+import { walletRepository, historyRepository } from '../../infrastructure/storage/storageProvider';
 import { WebCryptoRNG } from '../../infrastructure/rng/WebCryptoRNG';
 import { AdminGrantChipsUseCase } from '../../application/usecases/AdminGrantChips';
 import { ViewAllWalletsUseCase } from "../../application/usecases/ViewAllWallets";
@@ -66,8 +65,9 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
   const [showResultModal, setShowResultModal] = useState<boolean>(false);
 
   // Clean Architecture Repositories & Use Cases
-  const walletRepo = useMemo(() => new LocalStorageWalletRepo(), []);
-  const historyRepo = useMemo(() => new LocalStorageHistoryRepo(), []);
+  // ที่เก็บข้อมูลหลักคือ Cloudflare D1 (ผ่าน Worker API) และสำรองเป็น LocalStorage เมื่อต่อไม่ได้
+  const walletRepo = useMemo(() => walletRepository, []);
+  const historyRepo = useMemo(() => historyRepository, []);
   const rng = useMemo(() => new WebCryptoRNG(), []);
 
   const placeBetUseCase = useMemo(
@@ -90,6 +90,9 @@ export function useGameEngine(userId?: string, isAdmin = false, isCreator = fals
   // Sync wallet and stats on mount or when userId changes
   const syncState = useCallback(async () => {
     try {
+      // แคชรายชื่อผู้ถูกแบนจาก D1 ให้พร้อมก่อน เพราะการตรวจแบนเป็นแบบ synchronous
+      await adminService.refreshCaches();
+
       const wallet = await walletRepo.getWallet(userId);
       const currentStats = await historyRepo.getStats(userId);
 

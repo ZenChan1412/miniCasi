@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, ExternalLink, Copy, Check, Sparkles, X, ShieldCheck, Crown } from 'lucide-react';
+import { KeyRound, ExternalLink, Copy, Check, Sparkles, X, ShieldCheck } from 'lucide-react';
 import { UserProfile } from '../../domain/entities/User';
 
 interface GoogleConfigModalProps {
@@ -112,45 +112,9 @@ export const GoogleConfigModal: React.FC<GoogleConfigModalProps> = ({
           <span>ปลอดภัยตามมาตรฐาน OWASP (Client ID ปลอดภัยในการใช้บน Frontend ไม่เปิดเผย Secret)</span>
         </div>
 
-        {/* Action: Mock Demo Login or Close */}
+        {/* Action: Demo Login (ผู้เล่นทั่วไปเท่านั้น) หรือปิด */}
         <div className="pt-2 flex flex-col sm:flex-row flex-wrap items-center gap-2">
-          {/* 1. Creator (Admin++) */}
-          <button
-            type="button"
-            onClick={() => {
-              onMockLogin({
-                id: 'google_creator_songpon',
-                name: 'Songpon (Creator)',
-                email: 'songpon.official@gmail.com',
-                picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-              });
-              onClose();
-            }}
-            className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-98 transition-all cursor-pointer"
-          >
-            <Crown className="w-4 h-4 text-slate-950" />
-            <span>ทดสอบ Creator (Admin++)</span>
-          </button>
-
-          {/* 2. Admin (Seree) */}
-          <button
-            type="button"
-            onClick={() => {
-              onMockLogin({
-                id: 'google_admin_seree',
-                name: 'Seree (Admin)',
-                email: 'seree999@gmail.com',
-                picture: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-              });
-              onClose();
-            }}
-            className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-purple-900/80 hover:bg-purple-800 text-purple-200 border border-purple-500/40 font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/20 active:scale-98 transition-all cursor-pointer"
-          >
-            <ShieldCheck className="w-4 h-4 text-purple-300" />
-            <span>ทดสอบ Admin (Seree)</span>
-          </button>
-
-          {/* 3. Regular Player */}
+          {/* เข้าเล่นแบบผู้เล่นทั่วไป (ไม่มีสิทธิ์ผู้ดูแลระบบ) */}
           <button
             type="button"
             onClick={() => {

@@ -1,280 +1,116 @@
 import { ManagedUser } from '../../domain/entities/ManagedUser';
-import { AuditRecord, AuditAction } from '../../domain/entities/AuditLog';
+import { AuditRecord } from '../../domain/entities/AuditLog';
 import { UserProfile } from '../../domain/entities/User';
-import { resolveRole, resolveUserRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
-import { LocalStorageWalletRepo } from '../../infrastructure/storage/LocalStorageWalletRepo';
-import { LocalStorageHistoryRepo } from '../../infrastructure/storage/LocalStorageHistoryRepo';
-import { VirtualWallet } from '../../domain/entities/VirtualWallet';
+import { resolveUserRole } from '../../domain/constants/AdminConfig';
+import { ensureStorageReady, getStorageStatus } from '../../infrastructure/storage/storageProvider';
+import { LocalAdminStore } from './LocalAdminStore';
+import { D1AdminStore, SystemMetrics } from './D1AdminStore';
 
+/**
+ * บริการจัดการผู้ใช้สำหรับ Admin / Creator
+ *
+ * ที่เก็บหลักคือ Cloudflare D1 (ผ่าน Worker API) และถอยไปใช้ LocalStorage
+ * เมื่อต่อฐานข้อมูลไม่ได้ โดยสถานะที่ใช้จริงดูได้จาก getStorageStatus()
+ *
+ * isUserBanned() และ getAuditLogs() ยังเป็นแบบ synchronous ตามที่ชั้น UI เรียกใช้
+ * จึงอ่านจากแคชที่ถูกรีเฟรชตอน getAllUsers() หรือ refreshCaches()
+ */
 export class AdminService {
-  private static readonly REGISTRY_KEY = 'high_low_user_registry_v1';
-  private static readonly BANNED_KEY = 'high_low_banned_users_v1';
-  private static readonly AUDIT_KEY = 'high_low_audit_logs_v2';
+  private local = new LocalAdminStore();
+  private d1 = new D1AdminStore();
 
-  private walletRepo = new LocalStorageWalletRepo();
-  private historyRepo = new LocalStorageHistoryRepo();
+  private bannedCache = new Set<string>();
+  private auditCache: AuditRecord[] = [];
 
-  private getStorage(): Storage | null {
-    return typeof window !== 'undefined' && window.localStorage ? window.localStorage : null;
+  private usingD1(): boolean {
+    return getStorageStatus().mode === 'd1';
+  }
+
+  /** เรียกตอนเริ่มแอป เพื่อให้แคชแบน/Audit พร้อมใช้ก่อนผู้เล่นกดเล่น */
+  public async refreshCaches(): Promise<void> {
+    await ensureStorageReady();
+    if (!this.usingD1()) return;
+
+    try {
+      const [bans, logs] = await Promise.all([this.d1.listBans(), this.d1.getAuditLogs()]);
+      this.bannedCache = new Set(bans.map((b) => b.playerId));
+      this.auditCache = logs;
+    } catch (err) {
+      console.error('ไม่สามารถรีเฟรชข้อมูล Admin จาก D1:', err);
+    }
   }
 
   /**
-   * บันทึกข้อมูลผู้ใช้ลง Registry เมื่อมีการล็อกอินหรือเข้าเล่น
+   * บันทึกผู้ใช้เข้าระบบ (เรียกจากขั้นตอนล็อกอิน ซึ่งเป็น synchronous)
+   * โหมด D1 จึงยิงแบบ fire-and-forget และเขียน LocalStorage ควบไว้เป็นสำเนา
    */
   public registerUser(user: UserProfile): void {
-    const ls = this.getStorage();
-    if (!ls) return;
+    this.local.registerUser(user);
 
-    try {
-      const raw = ls.getItem(AdminService.REGISTRY_KEY);
-      const registry: Record<string, Partial<ManagedUser>> = raw ? JSON.parse(raw) : {};
-
-      const existing = registry[user.id] || {};
-      registry[user.id] = {
-        ...existing,
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        picture: user.picture,
-        provider: user.provider,
-        role: resolveUserRole(user.id, user.email, user.role),
-        lastActiveAt: Date.now(),
-        createdAt: existing.createdAt || Date.now(),
-      };
-
-      ls.setItem(AdminService.REGISTRY_KEY, JSON.stringify(registry));
-    } catch (e) {
-      console.error('Failed to register user:', e);
-    }
+    void ensureStorageReady().then(() => {
+      if (!this.usingD1()) return;
+      this.d1.registerUser(user).catch((err) => {
+        console.error('บันทึกผู้ใช้ลง D1 ไม่สำเร็จ:', err);
+      });
+    });
   }
 
-  /**
-   * ตรวจสอบว่าผู้ใช้ถูกระงับสิทธิ์ (Banned) หรือไม่
-   */
   public isUserBanned(userId?: string): boolean {
     if (!userId) return false;
-    const ls = this.getStorage();
-    if (!ls) return false;
-
-    try {
-      const raw = ls.getItem(AdminService.BANNED_KEY);
-      if (!raw) return false;
-      const bannedMap: Record<string, { bannedAt: number; reason?: string }> = JSON.parse(raw);
-      return Boolean(bannedMap[userId]);
-    } catch {
-      return false;
+    if (this.usingD1()) {
+      return this.bannedCache.has(userId);
     }
+    return this.local.isUserBanned(userId);
   }
 
-  /**
-   * ดึงรายชื่อผู้ใช้ทั้งหมดในระบบ พร้อมยอดชิปสดและสถิติ
-   */
   public async getAllUsers(currentUser?: UserProfile | null): Promise<ManagedUser[]> {
-    const ls = this.getStorage();
-    const usersMap = new Map<string, ManagedUser>();
+    await ensureStorageReady();
 
-    // 0. บันทึกและดึงข้อมูลของ currentUser ก่อนเสมอ
+    if (!this.usingD1()) {
+      return await this.local.getAllUsers(currentUser);
+    }
+
     if (currentUser) {
-      this.registerUser(currentUser);
-      usersMap.set(currentUser.id, {
-        id: currentUser.id,
-        name: currentUser.name,
-        email: currentUser.email,
-        picture: currentUser.picture,
-        provider: currentUser.provider,
-        role: resolveUserRole(currentUser.id, currentUser.email, currentUser.role),
-        isBanned: this.isUserBanned(currentUser.id),
-        balance: 1000,
-        totalRounds: 0,
-        winRate: 0,
-        biggestWin: 0,
-        currentStreak: 0,
-        lastActiveAt: Date.now(),
-        createdAt: Date.now(),
-      });
+      // ให้ผู้ใช้ที่กำลังล็อกอินมีแถวใน D1 ก่อนดึงรายชื่อ
+      await this.d1.registerUser(currentUser).catch(() => undefined);
     }
 
-    // 1. อ่านจาก User Registry ที่บันทึกไว้
-    if (ls) {
-      try {
-        const raw = ls.getItem(AdminService.REGISTRY_KEY);
-        if (raw) {
-          const registry: Record<string, Partial<ManagedUser>> = JSON.parse(raw);
-          for (const [id, u] of Object.entries(registry)) {
-            // ไม่เขียนทับ currentUser ที่สดกว่า
-            if (currentUser && id === currentUser.id) continue;
+    const [users, bans, logs] = await Promise.all([
+      this.d1.getAllUsers(),
+      this.d1.listBans(),
+      this.d1.getAuditLogs(),
+    ]);
 
-            const isSeree = id === 'google_admin_seree' || id.includes('seree');
-            const isSongpon = id === 'google_creator_songpon' || id.includes('songpon');
+    this.bannedCache = new Set(bans.map((b) => b.playerId));
+    this.auditCache = logs;
 
-            usersMap.set(id, {
-              id,
-              name: u.name || (isSeree ? 'Seree (Admin)' : isSongpon ? 'Songpon (Creator)' : id),
-              email: u.email || (isSeree ? 'seree999@gmail.com' : isSongpon ? 'songpon.official@gmail.com' : undefined),
-              picture: u.picture,
-              provider: u.provider || 'google',
-              role: resolveUserRole(id, u.email, u.role),
-              isBanned: this.isUserBanned(id),
-              balance: 1000,
-              totalRounds: 0,
-              winRate: 0,
-              biggestWin: 0,
-              currentStreak: 0,
-              lastActiveAt: u.lastActiveAt || Date.now(),
-              createdAt: u.createdAt || Date.now(),
-            });
-          }
-        }
-      } catch (e) {
-        console.error('Failed to parse registry:', e);
+    // กันข้อมูลซ้ำซ้อนไว้อีกชั้น: ตารางบน Dashboard ใช้ user.id เป็น React key
+    // ถ้ามี id ซ้ำเข้ามา แถวจะเรนเดอร์ผิดเพี้ยน
+    const unique = new Map<string, ManagedUser>();
+    for (const user of users) {
+      if (!unique.has(user.id)) {
+        unique.set(user.id, user);
       }
     }
 
-    // 2. ตรวจสอบค้นหา Wallets ใน LocalStorage เพื่อให้ครอบคลุมผู้เล่นทุกคน (รวม Guest และ Google users)
-    if (ls) {
-      for (let i = 0; i < ls.length; i++) {
-        const key = ls.key(i);
-        if (!key) continue;
+    const resolved = Array.from(unique.values()).map((user) => {
+      const isCurrent =
+        Boolean(currentUser) &&
+        (user.id === currentUser!.id ||
+          (Boolean(currentUser!.email) && user.email === currentUser!.email));
 
-        if (key.startsWith('high_low_wallet_v2')) {
-          let uId = 'guest';
-          if (key.includes('_user_')) {
-            uId = key.replace('high_low_wallet_v2_user_', '');
-          }
+      return {
+        ...user,
+        // สิทธิ์สุดท้ายตัดสินฝั่ง client เพื่อให้ตรงกับ AdminConfig (อีเมลผู้สร้าง/แอดมินที่ตั้งไว้)
+        role: resolveUserRole(user.id, user.email, user.role),
+        name: isCurrent ? currentUser!.name : user.name,
+        email: isCurrent ? currentUser!.email : user.email,
+        picture: isCurrent ? currentUser!.picture || user.picture : user.picture,
+        isBanned: this.bannedCache.has(user.id),
+      } satisfies ManagedUser;
+    });
 
-          if (usersMap.has(uId)) {
-            continue;
-          }
-
-          const isGuest = uId === 'guest';
-          const isSeree = uId === 'google_admin_seree' || uId.includes('seree');
-          const isSongpon = uId === 'google_creator_songpon' || uId.includes('songpon');
-          const defaultEmail = isSeree ? 'seree999@gmail.com' : isSongpon ? 'songpon.official@gmail.com' : undefined;
-          const defaultName = isGuest
-            ? 'ผู้เล่นทั่วไป (Guest)'
-            : isSeree
-            ? 'Seree (Admin)'
-            : isSongpon
-            ? 'Songpon (Creator)'
-            : `ผู้ใช้ ${uId.substring(0, 10)}`;
-
-          usersMap.set(uId, {
-            id: uId,
-            name: defaultName,
-            email: defaultEmail,
-            role: resolveUserRole(uId, defaultEmail),
-            isBanned: this.isUserBanned(uId),
-            balance: 1000,
-            totalRounds: 0,
-            winRate: 0,
-            biggestWin: 0,
-            currentStreak: 0,
-            lastActiveAt: Date.now(),
-            createdAt: Date.now(),
-            provider: isGuest ? 'guest' : 'google',
-          });
-        }
-      }
-
-      // ตรวจสอบค้นหา Banned Users ที่อาจยังไม่มีกระเป๋าหรือประวัติ
-      try {
-        const rawBanned = ls.getItem(AdminService.BANNED_KEY);
-        if (rawBanned) {
-          const bannedMap = JSON.parse(rawBanned);
-          for (const bannedId of Object.keys(bannedMap)) {
-            if (!usersMap.has(bannedId)) {
-              usersMap.set(bannedId, {
-                id: bannedId,
-                name: `ผู้ใช้ ${bannedId}`,
-                role: resolveUserRole(bannedId, null),
-                isBanned: true,
-                balance: 1000,
-                totalRounds: 0,
-                winRate: 0,
-                biggestWin: 0,
-                currentStreak: 0,
-                lastActiveAt: Date.now(),
-                createdAt: Date.now(),
-                provider: 'google',
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Failed to parse banned users:', e);
-      }
-    }
-
-    // 3. เพิ่ม Default Super Users หากยังไม่มีในระบบ เพื่อให้เห็นบน Dashboard เสมอ
-    if (!usersMap.has('google_creator_songpon')) {
-      usersMap.set('google_creator_songpon', {
-        id: 'google_creator_songpon',
-        name: 'Songpon (Creator)',
-        email: 'songpon.official@gmail.com',
-        role: resolveUserRole('google_creator_songpon', 'songpon.official@gmail.com'),
-        isBanned: false,
-        balance: 999999,
-        totalRounds: 150,
-        winRate: 85.5,
-        biggestWin: 30000,
-        currentStreak: 12,
-        lastActiveAt: Date.now(),
-        createdAt: Date.now() - 86400000 * 7,
-        provider: 'google',
-      });
-    }
-
-    if (!usersMap.has('google_admin_seree')) {
-      usersMap.set('google_admin_seree', {
-        id: 'google_admin_seree',
-        name: 'Seree (Admin)',
-        email: 'seree999@gmail.com',
-        role: resolveUserRole('google_admin_seree', 'seree999@gmail.com'),
-        isBanned: false,
-        balance: 50000,
-        totalRounds: 80,
-        winRate: 62.0,
-        biggestWin: 12000,
-        currentStreak: 5,
-        lastActiveAt: Date.now() - 3600000,
-        createdAt: Date.now() - 86400000 * 3,
-        provider: 'google',
-      });
-    }
-
-    // 4. ดึงข้อมูล Wallet และ Stats สดๆ ของแต่ละ User
-    const userList: ManagedUser[] = [];
-    for (const [id, user] of usersMap.entries()) {
-      try {
-        const targetId = id === 'guest' ? undefined : id;
-        const wallet = await this.walletRepo.getWallet(targetId);
-        const stats = await this.historyRepo.getStats(targetId);
-
-        user.balance = wallet.balance;
-        user.lastBailoutAt = wallet.lastBailoutAt;
-        user.lastDailyClaimAt = wallet.lastDailyClaimAt;
-        user.totalRounds = stats.totalRounds;
-        user.winRate = stats.winRatePercentage;
-        user.biggestWin = stats.biggestWin;
-        user.currentStreak = stats.currentStreak;
-        user.isBanned = this.isUserBanned(id);
-
-        if (currentUser && (id === currentUser.id || (currentUser.email && user.email === currentUser.email))) {
-          user.role = resolveUserRole(currentUser.id, currentUser.email, user.role);
-          user.name = currentUser.name;
-          user.email = currentUser.email;
-          if (currentUser.picture) user.picture = currentUser.picture;
-        } else {
-          user.role = resolveUserRole(id, user.email, user.role);
-        }
-      } catch (err) {
-        console.warn(`Could not sync live wallet for ${id}:`, err);
-      }
-      userList.push(user);
-    }
-
-    // จัดเรียง: ผู้สร้าง -> แอดมิน -> ชิปมากสุด
-    return userList.sort((a, b) => {
+    return resolved.sort((a, b) => {
       if (a.role === 'creator') return -1;
       if (b.role === 'creator') return 1;
       if (a.role === 'admin' && b.role !== 'admin') return -1;
@@ -283,262 +119,99 @@ export class AdminService {
     });
   }
 
-  /**
-   * เพิ่มชิปให้ผู้เล่น (Admin & Creator)
-   */
   public async grantChips(
     targetUserId: string,
     amount: number,
     actor: UserProfile
   ): Promise<{ newBalance: number }> {
-    const targetId = targetUserId === 'guest' ? undefined : targetUserId;
-    const wallet = await this.walletRepo.getWallet(targetId);
-    const before = wallet.balance;
-    wallet.credit(amount);
-    await this.walletRepo.saveWallet(wallet, targetId);
-
-    this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'admin',
-      action: 'CHIP_GRANT',
-      targetUserId,
-      targetName: targetUserId,
-      amount,
-      balanceBefore: before,
-      balanceAfter: wallet.balance,
-      detail: `เพิ่มชิป +${amount.toLocaleString()} ชิป (จาก ${before.toLocaleString()} เป็น ${wallet.balance.toLocaleString()}) โดย ${actor.email || actor.name}`,
-    });
-
-    return { newBalance: wallet.balance };
+    await ensureStorageReady();
+    return this.usingD1()
+      ? await this.d1.grantChips(targetUserId, amount, actor)
+      : await this.local.grantChips(targetUserId, amount, actor);
   }
 
-  /**
-   * รีเซ็ตยอดกระเป๋าชิปของผู้ใช้กลับเป็น 1,000 ชิป
-   */
   public async resetWallet(targetUserId: string, actor: UserProfile): Promise<void> {
-    const targetId = targetUserId === 'guest' ? undefined : targetUserId;
-    const wallet = await this.walletRepo.resetWallet(targetId);
-
-    this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'admin',
-      action: 'WALLET_RESET',
-      targetUserId,
-      targetName: targetUserId,
-      balanceAfter: wallet.balance,
-      detail: `รีเซ็ตยอดชิปของ ${targetUserId} กลับเป็น 1,000 ชิป โดย ${actor.email || actor.name}`,
-    });
+    await ensureStorageReady();
+    if (this.usingD1()) {
+      await this.d1.resetWallet(targetUserId, actor);
+      return;
+    }
+    await this.local.resetWallet(targetUserId, actor);
   }
 
-  /**
-   * ล้าง Cooldown ทั้ง Bailout และ Daily
-   */
   public async resetCooldowns(targetUserId: string, actor: UserProfile): Promise<void> {
-    const targetId = targetUserId === 'guest' ? undefined : targetUserId;
-    const wallet = await this.walletRepo.getWallet(targetId);
-    wallet.resetCooldowns();
-    await this.walletRepo.saveWallet(wallet, targetId);
-
-    this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'admin',
-      action: 'COOLDOWN_RESET',
-      targetUserId,
-      targetName: targetUserId,
-      detail: `ล้าง Cooldown (Bailout & Daily) ของ ${targetUserId} โดย ${actor.email || actor.name}`,
-    });
+    await ensureStorageReady();
+    if (this.usingD1()) {
+      await this.d1.resetCooldowns(targetUserId, actor);
+      return;
+    }
+    await this.local.resetCooldowns(targetUserId, actor);
   }
 
-  /**
-   * ระงับผู้ใช้ (Ban User) — สิทธิ์เฉพาะ Creator / Admin++
-   */
   public async banUser(
     targetUserId: string,
     reason: string = 'ละเมิดข้อกำหนดการใช้งาน',
     actor: UserProfile
   ): Promise<void> {
-    const ls = this.getStorage();
-    if (!ls) return;
+    await ensureStorageReady();
 
-    try {
-      const raw = ls.getItem(AdminService.BANNED_KEY);
-      const bannedMap: Record<string, { bannedAt: number; reason: string }> = raw ? JSON.parse(raw) : {};
-      bannedMap[targetUserId] = {
-        bannedAt: Date.now(),
-        reason,
-      };
-      ls.setItem(AdminService.BANNED_KEY, JSON.stringify(bannedMap));
-
-      this.addAuditLog({
-        actorEmail: actor.email,
-        actorRole: actor.role || 'creator',
-        action: 'USER_BAN',
-        targetUserId,
-        detail: `ระงับบัญชี (Ban) ${targetUserId} ข้อหา: ${reason} โดย ${actor.email || actor.name}`,
-      });
-    } catch (e) {
-      console.error('Failed to ban user:', e);
+    if (this.usingD1()) {
+      await this.d1.banUser(targetUserId, reason, actor);
+      this.bannedCache.add(targetUserId);
+      return;
     }
+    await this.local.banUser(targetUserId, reason, actor);
   }
 
-  /**
-   * ปลดแบนผู้ใช้ (Unban User) — สิทธิ์เฉพาะ Creator / Admin++
-   */
   public async unbanUser(targetUserId: string, actor: UserProfile): Promise<void> {
-    const ls = this.getStorage();
-    if (!ls) return;
+    await ensureStorageReady();
 
-    try {
-      const raw = ls.getItem(AdminService.BANNED_KEY);
-      if (raw) {
-        const bannedMap = JSON.parse(raw);
-        delete bannedMap[targetUserId];
-        ls.setItem(AdminService.BANNED_KEY, JSON.stringify(bannedMap));
-      }
-
-      this.addAuditLog({
-        actorEmail: actor.email,
-        actorRole: actor.role || 'creator',
-        action: 'USER_UNBAN',
-        targetUserId,
-        detail: `ปลดระงับบัญชี (Unban) ${targetUserId} สำเร็จ โดย ${actor.email || actor.name}`,
-      });
-    } catch (e) {
-      console.error('Failed to unban user:', e);
+    if (this.usingD1()) {
+      await this.d1.unbanUser(targetUserId, actor);
+      this.bannedCache.delete(targetUserId);
+      return;
     }
+    await this.local.unbanUser(targetUserId, actor);
   }
 
-  /**
-   * เปลี่ยนระดับสิทธิ์ของผู้ใช้ (Creator / Admin / Player) — สิทธิ์เฉพาะ Creator (Admin++)
-   */
   public async changeUserRole(
     targetUserId: string,
     targetEmail: string | undefined,
     newRole: 'creator' | 'admin' | 'player',
     actor: UserProfile
   ): Promise<void> {
-    if (actor.role !== 'creator') {
-      throw new Error('เฉพาะผู้สร้าง (Creator / Admin++) เท่านั้นที่มีสิทธิ์เปลี่ยนระดับผู้ใช้');
+    await ensureStorageReady();
+
+    if (this.usingD1()) {
+      await this.d1.changeUserRole(targetUserId, targetEmail, newRole, actor);
+      return;
     }
-
-    const effectiveEmail =
-      targetEmail ||
-      (targetUserId === 'google_admin_seree' || targetUserId.includes('seree')
-        ? 'seree999@gmail.com'
-        : targetUserId === 'google_creator_songpon' || targetUserId.includes('songpon')
-        ? 'songpon.official@gmail.com'
-        : undefined);
-
-    // บันทึก override ทั้ง ID และ Email
-    setUserRoleOverride(targetUserId, newRole);
-    if (effectiveEmail) {
-      setUserRoleOverride(effectiveEmail, newRole);
-    }
-
-    const ls = this.getStorage();
-    if (ls) {
-      try {
-        const raw = ls.getItem(AdminService.REGISTRY_KEY);
-        const registry: Record<string, Partial<ManagedUser>> = raw ? JSON.parse(raw) : {};
-        const existing = registry[targetUserId] || {};
-        registry[targetUserId] = {
-          ...existing,
-          id: targetUserId,
-          name:
-            existing.name ||
-            (targetUserId === 'google_admin_seree'
-              ? 'Seree (Admin)'
-              : targetUserId === 'google_creator_songpon'
-              ? 'Songpon (Creator)'
-              : effectiveEmail || targetUserId),
-          email: effectiveEmail || existing.email,
-          role: newRole,
-          lastActiveAt: Date.now(),
-          createdAt: existing.createdAt || Date.now(),
-        };
-        ls.setItem(AdminService.REGISTRY_KEY, JSON.stringify(registry));
-      } catch (e) {
-        console.error('Failed to update user role in registry:', e);
-      }
-    }
-
-    this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'creator',
-      action: newRole === 'player' ? 'ROLE_DEMOTE' : 'ROLE_PROMOTE',
-      targetUserId,
-      targetName: effectiveEmail || targetUserId,
-      detail: `เปลี่ยนระดับสิทธิ์ของ ${effectiveEmail || targetUserId} เป็น ${newRole.toUpperCase()} โดย ${actor.email || actor.name}`,
-    });
+    await this.local.changeUserRole(targetUserId, targetEmail, newRole, actor);
   }
 
-  /**
-   * บันทึก Audit Log ลงระบบ
-   */
   public addAuditLog(entry: Omit<AuditRecord, 'id' | 'timestamp'>): void {
-    const ls = this.getStorage();
-    if (!ls) return;
-
-    try {
-      const raw = ls.getItem(AdminService.AUDIT_KEY);
-      const logs: AuditRecord[] = raw ? JSON.parse(raw) : [];
-
-      const record: AuditRecord = {
-        ...entry,
-        id: `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        timestamp: Date.now(),
-      };
-
-      logs.unshift(record); // ใส่หน้าสุด
-      // เก็บสูงสุด 100 รายการ
-      if (logs.length > 100) logs.length = 100;
-
-      ls.setItem(AdminService.AUDIT_KEY, JSON.stringify(logs));
-    } catch (e) {
-      console.error('Failed to add audit log:', e);
+    if (this.usingD1()) {
+      this.d1
+        .addAuditLog(entry)
+        .then((record) => {
+          this.auditCache = [record, ...this.auditCache].slice(0, 100);
+        })
+        .catch((err) => console.error('บันทึก Audit Log ลง D1 ไม่สำเร็จ:', err));
+      return;
     }
+    this.local.addAuditLog(entry);
   }
 
-  /**
-   * อ่านรายการ Audit Logs ทั้งหมด
-   */
   public getAuditLogs(): AuditRecord[] {
-    const ls = this.getStorage();
-    if (!ls) return [];
-
-    try {
-      const raw = ls.getItem(AdminService.AUDIT_KEY);
-      if (!raw) return [];
-      const logs: AuditRecord[] = JSON.parse(raw);
-      return logs.sort((a, b) => b.timestamp - a.timestamp);
-    } catch {
-      return [];
+    if (this.usingD1()) {
+      return [...this.auditCache].sort((a, b) => b.timestamp - a.timestamp);
     }
+    return this.local.getAuditLogs();
   }
 
-  /**
-   * สรุปสถิติภาพรวมของทั้งระบบสำหรับ Dashboard Header
-   */
-  public async getSystemMetrics(): Promise<{
-    totalUsers: number;
-    circulatingChips: number;
-    totalRounds: number;
-    totalBanned: number;
-    adminCount: number;
-  }> {
-    const users = await this.getAllUsers();
-    const circulatingChips = users.reduce((acc, u) => acc + (u.balance || 0), 0);
-    const totalRounds = users.reduce((acc, u) => acc + (u.totalRounds || 0), 0);
-    const totalBanned = users.filter((u) => u.isBanned).length;
-    const adminCount = users.filter((u) => u.role === 'admin' || u.role === 'creator').length;
-
-    return {
-      totalUsers: users.length,
-      circulatingChips,
-      totalRounds,
-      totalBanned,
-      adminCount,
-    };
+  public async getSystemMetrics(): Promise<SystemMetrics> {
+    await ensureStorageReady();
+    return this.usingD1() ? await this.d1.getSystemMetrics() : await this.local.getSystemMetrics();
   }
 }
 

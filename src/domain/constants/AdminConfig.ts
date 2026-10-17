@@ -159,14 +159,11 @@ export function setUserRoleOverride(identifier: string, role: 'creator' | 'admin
 export function isCreatorEmail(email?: string | null): boolean {
   const normalized = normalizeEmail(email);
   if (!normalized) return false;
-  return (
-    CREATOR_EMAILS.includes(normalized) ||
-    getDynamicCreatorEmails().includes(normalized) ||
-    normalized === 'songpon.official' ||
-    normalized.startsWith('songpon.official@') ||
-    normalized.includes('songpon.official') ||
-    normalized.includes('songpon')
-  );
+
+  // เทียบแบบตรงตัวกับรายชื่อที่กำหนดไว้เท่านั้น
+  // เดิมใช้ includes('songpon') ทำให้อีเมลใดก็ตามที่มีคำว่า songpon
+  // (เช่น notsongpon@gmail.com) ได้สิทธิ์ผู้สร้างไปด้วย
+  return CREATOR_EMAILS.includes(normalized) || getDynamicCreatorEmails().includes(normalized);
 }
 
 /**
@@ -180,15 +177,7 @@ export function resolveRole(email?: string | null): 'creator' | 'admin' | 'playe
   const override = getUserRoleOverride(normalized);
   if (override) return override;
   if (isCreatorEmail(normalized)) return 'creator';
-  if (
-    ADMIN_EMAILS.includes(normalized) ||
-    getDynamicAdminEmails().includes(normalized) ||
-    normalized === 'seree' ||
-    normalized === 'seree999' ||
-    normalized.startsWith('seree999@') ||
-    normalized.startsWith('seree@') ||
-    normalized.includes('seree')
-  ) {
+  if (ADMIN_EMAILS.includes(normalized) || getDynamicAdminEmails().includes(normalized)) {
     return 'admin';
   }
   return 'player';
@@ -217,33 +206,16 @@ export function resolveUserRole(
     if (override) return override;
   }
 
-  // 2. Creator checks
+  // 2. สิทธิ์ตัดสินจากอีเมลที่ยืนยันแล้วเท่านั้น
+  //
+  // เดิมโค้ดนี้ให้สิทธิ์จาก substring ของ user id (เช่น id ที่มีคำว่า 'admin',
+  // 'creator', 'songpon', 'seree' หรือ id ทดสอบ 'admin_demo'/'creator_demo')
+  // ซึ่งเป็นช่องยกระดับสิทธิ์: ใครตั้ง id ให้มีคำเหล่านั้นก็กลายเป็นผู้ดูแลระบบได้
+  // จึงเหลือเพียงการตรวจอีเมลกับรายชื่อที่กำหนดไว้
   if (isCreatorEmail(email)) return 'creator';
-  if (userId) {
-    const normId = userId.toLowerCase();
-    if (
-      normId === 'google_creator_songpon' ||
-      normId === 'creator_demo' ||
-      normId.includes('creator') ||
-      normId.includes('songpon')
-    ) {
-      return 'creator';
-    }
-  }
 
   // 3. Admin checks
   if (isAdminEmail(email)) return 'admin';
-  if (userId) {
-    const normId = userId.toLowerCase();
-    if (
-      normId === 'google_admin_seree' ||
-      normId === 'admin_demo' ||
-      normId.includes('admin') ||
-      normId.includes('seree')
-    ) {
-      return 'admin';
-    }
-  }
 
   // 4. Stored role
   if (storedRole && (storedRole === 'creator' || storedRole === 'admin' || storedRole === 'player')) {
@@ -260,15 +232,11 @@ export function resolveUserRole(
 export function isAdminEmail(email?: string | null): boolean {
   const normalized = normalizeEmail(email);
   if (!normalized) return false;
+  // เทียบตรงตัวเท่านั้น ด้วยเหตุผลเดียวกับ isCreatorEmail
   return (
     isCreatorEmail(normalized) ||
     ADMIN_EMAILS.includes(normalized) ||
-    getDynamicAdminEmails().includes(normalized) ||
-    normalized === 'seree' ||
-    normalized === 'seree999' ||
-    normalized.startsWith('seree999@') ||
-    normalized.startsWith('seree@') ||
-    normalized.includes('seree')
+    getDynamicAdminEmails().includes(normalized)
   );
 }
 

@@ -100,18 +100,24 @@ export class GoogleAuthService implements IAuthService {
     return user;
   }
 
+  /**
+   * เข้าเล่นแบบทดลองโดยไม่ผ่าน Google
+   *
+   * การล็อกอินแบบนี้ไม่มีการยืนยันตัวตน จึงบังคับสิทธิ์เป็น 'player' เสมอ
+   * และไม่รับ id/email/role ที่ผู้เรียกส่งมา เพื่อไม่ให้ใช้เป็นช่องปลอมตัว
+   * เป็นผู้ดูแลระบบ (สิทธิ์ admin/creator ต้องมาจากอีเมลที่ Google ยืนยันแล้ว)
+   */
   public async loginWithMock(mockData?: Partial<UserProfile>): Promise<UserProfile> {
-    const email = (mockData?.email || 'player@gmail.com').trim().toLowerCase();
-    const id = mockData?.id || `mock_${Math.random().toString(36).substring(2, 9)}`;
+    const id = `mock_${Math.random().toString(36).substring(2, 9)}`;
 
     const user: UserProfile = {
       id,
-      email: mockData?.email || 'player@gmail.com',
-      name: mockData?.name || 'Google Player (Demo)',
-      givenName: mockData?.givenName || 'Google Player',
-      picture: mockData?.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      email: 'player.demo@example.invalid',
+      name: mockData?.name || 'ผู้เล่นทดลอง (Demo)',
+      givenName: mockData?.givenName || 'ผู้เล่นทดลอง',
+      picture: mockData?.picture,
       provider: 'mock',
-      role: resolveUserRole(id, email, mockData?.role),
+      role: 'player',
       loggedInAt: Date.now(),
     };
 

@@ -28,6 +28,7 @@ import { UserProfile } from '../../domain/entities/User';
 import { ManagedUser } from '../../domain/entities/ManagedUser';
 import { AuditRecord } from '../../domain/entities/AuditLog';
 import { adminService } from '../../application/services/AdminService';
+import { DbStatusPanel } from './DbStatusPanel';
 import {
   ADMIN_EMAILS,
   CREATOR_EMAILS,
@@ -775,6 +776,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 4: ADMIN++ SETTINGS */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
+            {/* สถานะการเชื่อมต่อฐานข้อมูล D1 */}
+            <DbStatusPanel />
+
             {/* Dynamic Admin Management */}
             <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-4">
               <div className="flex items-center gap-2.5">
