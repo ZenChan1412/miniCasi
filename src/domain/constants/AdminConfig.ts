@@ -5,7 +5,13 @@
  */
 
 // รายชื่อผู้ดูแลระบบหลัก (Hardcoded)
-const DEFAULT_ADMIN_EMAILS = ['seree999@gmail.com', 'seree@gmail.com'];
+const DEFAULT_ADMIN_EMAILS = [
+  'seree999@gmail.com',
+  'seree@gmail.com',
+  'kobsak.na@skru.ac.th',
+  'anaphat.kh@skru.ac.th',
+  'nakool.kh@skru.ac.th',
+];
 
 // ผู้สร้าง (Creator / Admin++) — เหนือกว่า Admin ทุกประการ (เจ้าของเกม)
 const DEFAULT_CREATOR_EMAILS = ['songpon.official@gmail.com'];
