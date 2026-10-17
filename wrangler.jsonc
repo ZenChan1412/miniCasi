@@ -18,16 +18,12 @@
     }
   ],
   "vars": {
-    // GEMINI (Fortune ChatBot) - production values อยูดวยใน file นี้ (เหมือน INWCLOUD_API_KEY)
-    "GEMINI_API_KEY": "",
+    // GEMINI_API_KEY และ INWCLOUD_API_KEY ตั้งใน Cloudflare Dashboard (Variables and secrets) ไม่ใส่ในไฟล์นี้
     "GEMINI_MODEL": "gemini-3.8-flash",
-    // GEMINI_API_KEY / GEMINI_MODEL ห้ามประกาศเป็น "" ตรงนี้ เพราะ deploy จะทับค่าที่ตั้งไว้ใน
-    // Dashboard/secret ให้ว่าง — local ใส่ใน .dev.vars, production ใช้ wrangler secret put
+    // ห้ามประกาศ key เป็น "" ตรงนี้ เพราะ deploy จะทับค่าใน Dashboard ให้ว่าง — local ใส่ใน .dev.vars
     // ── Payment Gateway (inwcloud.shop) หมวด PromptPay ────────────────
-    // ใส่ API Key ที่ได้จาก Dashboard ของ inwcloud ที่ช่อง INWCLOUD_API_KEY แล้ว deploy อีกครั้ง
     // คีย์นี้อยู่ฝั่ง Worker เท่านั้น เบราว์เซอร์ไม่เห็น — ห้ามใส่ prefix VITE_
     // ขอคีย์/ดูเอกสารได้ที่ https://inwcloud.shop/payment-gateway
-    "INWCLOUD_API_KEY": "",
     "INWCLOUD_BASE_URL": "https://api.inwcloud.shop",
     // อัตราแลกชิปและขอบเขตยอดเติม (หน่วยบาท)
     "CHIPS_PER_THB": "10",
