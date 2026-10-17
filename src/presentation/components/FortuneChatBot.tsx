@@ -151,7 +151,7 @@ const ORB_STARS = ['✦', '✧', '⋆', '✦'];
 function CrystalBallThinking() {
   const [zap, setZap] = useState(0);
   return (
-    <div className="flex justify-start" role="status" aria-live="polite">
+    <div className="flex justify-start animate-fade-in-up" role="status" aria-live="polite">
       <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/80 border border-slate-700/60 rounded-xl rounded-bl-sm">
         <button
           type="button"
@@ -321,7 +321,7 @@ export const FortuneChatBot: React.FC = () => {
           className={`${isSheet ? 'flex-1 min-h-0' : 'h-44 xl:h-52'} overflow-y-auto space-y-1.5 pr-1 overscroll-contain`}
         >
           {messages.map((m) => (
-            <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={m.id} className={`animate-fade-in-up flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[88%] px-3 py-2 leading-relaxed break-words rounded-xl text-sm ${
                   isSheet ? 'sm:text-base' : ''
@@ -351,7 +351,7 @@ export const FortuneChatBot: React.FC = () => {
                 type="button"
                 disabled={isTyping}
                 onClick={() => sendMessage(chip)}
-                className={`px-3 py-1.5 rounded-full bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-purple-500/40 transition-colors cursor-pointer disabled:opacity-50 text-xs sm:text-sm`}
+                className={`px-3 py-1.5 rounded-full bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-purple-500/40 hover-lift transition-colors cursor-pointer disabled:opacity-50 text-xs sm:text-sm`}
               >
                 {chip}
               </button>

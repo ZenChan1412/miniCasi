@@ -15,7 +15,7 @@ interface OutcomeAlertProps {
 export const OutcomeAlert: React.FC<OutcomeAlertProps> = ({ outcome, error }) => {
   if (error) {
     return (
-      <div className="w-full my-2 p-3 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs sm:text-sm flex items-center gap-2.5 animate-in fade-in duration-200 shadow-md">
+      <div className="w-full my-2 p-3 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-200 text-xs sm:text-sm flex items-center gap-2.5 animate-fade-in-up shadow-md">
         <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
         <span className="font-medium">{error}</span>
       </div>
@@ -26,7 +26,7 @@ export const OutcomeAlert: React.FC<OutcomeAlertProps> = ({ outcome, error }) =>
 
   return (
     <div
-      className={`w-full my-2 p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between animate-in zoom-in-95 duration-200 shadow-lg ${
+      className={`w-full my-2 p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between animate-pop-in shadow-lg ${
         outcome.won
           ? outcome.isTriple
             ? 'bg-gradient-to-r from-purple-950 to-amber-950 border-amber-400/60 shadow-purple-500/20'

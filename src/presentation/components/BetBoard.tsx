@@ -52,7 +52,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
           type="button"
           disabled={isRolling}
           onClick={() => onSelectOption('LOW')}
-          className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 cursor-pointer ${
+          className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 ease-out cursor-pointer hover-lift ${
             selectedOption === 'LOW'
               ? 'bg-gradient-to-b from-blue-600 to-blue-800 text-white shadow-lg shadow-blue-500/30 scale-102 ring-2 ring-blue-300'
               : 'bg-slate-900/90 text-slate-300 hover:bg-slate-800/90 border border-slate-700/60'
@@ -64,7 +64,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
             จ่าย 1 : 1
           </div>
           {selectedOption === 'LOW' && (
-            <div className="absolute -top-2 -right-2 bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
+            <div className="absolute -top-2 -right-2 animate-pop-in bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
               {selectedAmount} ชิป
             </div>
           )}
@@ -75,7 +75,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
           type="button"
           disabled={isRolling}
           onClick={() => onSelectOption('TRIPLE')}
-          className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 cursor-pointer ${
+          className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 ease-out cursor-pointer hover-lift ${
             selectedOption === 'TRIPLE'
               ? 'bg-gradient-to-b from-purple-600 to-purple-800 text-white shadow-lg shadow-purple-500/40 scale-102 ring-2 ring-purple-300'
               : 'bg-slate-900/90 text-slate-300 hover:bg-slate-800/90 border border-slate-700/60'
@@ -90,7 +90,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
             จ่าย 30 : 1
           </div>
           {selectedOption === 'TRIPLE' && (
-            <div className="absolute -top-2 -right-2 bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
+            <div className="absolute -top-2 -right-2 animate-pop-in bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
               {selectedAmount} ชิป
             </div>
           )}
@@ -101,7 +101,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
           type="button"
           disabled={isRolling}
           onClick={() => onSelectOption('HIGH')}
-          className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 cursor-pointer ${
+          className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 ease-out cursor-pointer hover-lift ${
             selectedOption === 'HIGH'
               ? 'bg-gradient-to-b from-red-600 to-red-800 text-white shadow-lg shadow-red-500/30 scale-102 ring-2 ring-red-300'
               : 'bg-slate-900/90 text-slate-300 hover:bg-slate-800/90 border border-slate-700/60'
@@ -113,7 +113,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
             จ่าย 1 : 1
           </div>
           {selectedOption === 'HIGH' && (
-            <div className="absolute -top-2 -right-2 bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
+            <div className="absolute -top-2 -right-2 animate-pop-in bg-amber-400 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
               {selectedAmount} ชิป
             </div>
           )}
@@ -163,7 +163,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
                 type="button"
                 disabled={isRolling || !canAfford}
                 onClick={() => onSelectAmount(chip)}
-                className={`flex-1 py-2 px-1 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer ${
+                className={`flex-1 py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 ease-out cursor-pointer hover-lift ${
                   isSelected
                     ? 'bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 shadow-md shadow-amber-500/30 ring-2 ring-yellow-200 scale-105'
                     : canAfford
@@ -181,7 +181,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
             type="button"
             disabled={isRolling || balance < 10}
             onClick={() => onSelectAmount(balance)}
-            className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-800 text-amber-400 hover:bg-slate-700 border border-amber-500/30 transition-all cursor-pointer"
+            className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-800 text-amber-400 hover:bg-slate-700 border border-amber-500/30 transition-all cursor-pointer hover-lift"
           >
             MAX
           </button>
@@ -211,7 +211,7 @@ export const BetBoard: React.FC<BetBoardProps> = ({
               ? 'bg-slate-800 text-slate-400 border border-slate-700'
               : balance < selectedAmount
               ? 'bg-red-950 text-red-400 border border-red-800'
-              : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-xl shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98]'
+              : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-xl shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] animate-pulse-glow'
           }`}
         >
           <Play className={`w-5 h-5 fill-current ${isRolling ? 'animate-spin' : ''}`} />

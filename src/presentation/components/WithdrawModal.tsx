@@ -105,12 +105,12 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose, b
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-label="ถอนเงินรางวัล"
     >
-      <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
+      <div className="animate-pop-in relative w-full max-w-md max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
         {/* ปุ่มปิด */}
         <button
           type="button"

@@ -1,7 +1,8 @@
 import { UserProfile } from '../../domain/entities/User';
 import { IAuthService } from '../../domain/ports/IAuthService';
 import { decodeGoogleJwt } from './jwtDecoder';
-import { resolveRole, resolveUserRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
+import { resolveTrustedRole, setUserRoleOverride } from '../../domain/constants/AdminConfig';
+import { api, setAuthTokenProvider } from '../api/apiClient';
 import { adminService } from '../../application/services/AdminService';
 
 export class GoogleAuthService implements IAuthService {
@@ -10,6 +11,8 @@ export class GoogleAuthService implements IAuthService {
   private listeners: Set<(user: UserProfile | null) => void> = new Set();
 
   constructor() {
+    // แนบ Google idToken ไปกับทุกคำขอ /api (Worker ใช้ยืนยันสิทธิ์ฝั่ง server)
+    setAuthTokenProvider(() => this.currentUser?.idToken);
     this.loadUserFromStorage();
   }
 
@@ -43,11 +46,12 @@ export class GoogleAuthService implements IAuthService {
         const parsed = JSON.parse(dataStr) as UserProfile;
         // ตรวจสอบสิทธิ์ทุกครั้งที่โหลด (กัน role เก่าค้างใน localStorage — creator > admin > player)
         if (parsed) {
-          parsed.role = resolveUserRole(parsed.id, parsed.email, parsed.role);
+          parsed.role = resolveTrustedRole(parsed.email);
         }
         this.currentUser = parsed;
         this.persistUser(parsed);
         adminService.registerUser(parsed);
+        void this.syncServerRole();
       }
     } catch (e) {
       console.error('โหลดข้อมูลผู้ใช้จาก LocalStorage ล้มเหลว:', e);
@@ -88,7 +92,7 @@ export class GoogleAuthService implements IAuthService {
       familyName: payload.family_name,
       picture: payload.picture,
       provider: 'google',
-      role: resolveUserRole(`google_${payload.sub}`, email),
+      role: resolveTrustedRole(email),
       idToken: credential,
       loggedInAt: Date.now(),
     };
@@ -97,7 +101,24 @@ export class GoogleAuthService implements IAuthService {
     this.persistUser(user);
     adminService.registerUser(user);
     this.notifyListeners();
+    void this.syncServerRole();
     return user;
+  }
+
+  /** ถาม Worker ว่า role จริงคืออะไร (รวมที่ Creator แต่งตั้งใน D1) แล้วอัปเดต UI ถ้าต่างจากที่ถืออยู่ */
+  private async syncServerRole(): Promise<void> {
+    const user = this.currentUser;
+    if (!user || user.provider !== 'google' || !user.idToken) return;
+    try {
+      const { role } = await api.get<{ role: UserProfile['role'] }>('/me');
+      if (this.currentUser === user && role && role !== user.role) {
+        user.role = role;
+        this.persistUser(user);
+        this.notifyListeners();
+      }
+    } catch {
+      // ต่อ Worker ไม่ได้ (เช่นโหมด LocalStorage) — ใช้ role จากรายชื่ออีเมลต่อไป
+    }
   }
 
   /**

@@ -139,9 +139,9 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   const isJackpot = won && isTriple && betOption === 'TRIPLE';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
       <div
-        className={`relative w-full max-w-md sm:max-w-lg rounded-3xl border shadow-2xl p-5 sm:p-6 overflow-hidden animate-in zoom-in-95 duration-200 ${
+        className={`relative w-full max-w-md sm:max-w-lg rounded-3xl border shadow-2xl p-5 sm:p-6 overflow-hidden animate-pop-in ${
           isJackpot
             ? 'bg-gradient-to-b from-purple-950/95 via-slate-900/95 to-slate-950 border-amber-400 shadow-purple-500/40 ring-2 ring-amber-300'
             : won

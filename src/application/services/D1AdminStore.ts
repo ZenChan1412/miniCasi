@@ -2,7 +2,6 @@ import { ManagedUser } from '../../domain/entities/ManagedUser';
 import { AuditRecord } from '../../domain/entities/AuditLog';
 import { UserProfile } from '../../domain/entities/User';
 import { api } from '../../infrastructure/api/apiClient';
-import { D1WalletRepo } from '../../infrastructure/storage/D1WalletRepo';
 import { setUserRoleOverride } from '../../domain/constants/AdminConfig';
 
 export interface BanEntry {
@@ -26,8 +25,6 @@ export interface SystemMetrics {
  * players, user_bans, audit_logs และ role_overrides — ข้อมูลจึงใช้ร่วมกันทุกเครื่อง
  */
 export class D1AdminStore {
-  private walletRepo = new D1WalletRepo();
-
   public async registerUser(profile: UserProfile): Promise<void> {
     await api.post('/players/register', { profile });
   }
@@ -48,84 +45,35 @@ export class D1AdminStore {
     return await api.get<AuditRecord[]>(`/admin/audit?limit=${limit}`);
   }
 
-  public async addAuditLog(entry: Omit<AuditRecord, 'id' | 'timestamp'>): Promise<AuditRecord> {
-    return await api.post<AuditRecord>('/admin/audit', { entry });
+  /** รายชื่อ id ที่ถูกแบน (public — ผู้เล่นทั่วไปเรียกได้) */
+  public async listBannedIds(): Promise<string[]> {
+    return await api.get<string[]>('/bans/ids');
   }
+
+  // Worker เขียน audit log เองทุกครั้งที่มีการกระทำของแอดมิน ฝั่ง client ไม่ต้องบันทึกซ้ำ
 
   public async grantChips(
     targetUserId: string,
     amount: number,
-    actor: UserProfile
+    _actor: UserProfile
   ): Promise<{ newBalance: number }> {
-    const wallet = await this.walletRepo.getWallet(targetUserId);
-    const before = wallet.balance;
-    wallet.credit(amount);
-    await this.walletRepo.saveWallet(wallet, targetUserId);
-
-    await this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'admin',
-      action: 'CHIP_GRANT',
-      targetUserId,
-      targetName: targetUserId,
-      amount,
-      balanceBefore: before,
-      balanceAfter: wallet.balance,
-      detail: `เพิ่มชิป +${amount.toLocaleString()} ชิป (จาก ${before.toLocaleString()} เป็น ${wallet.balance.toLocaleString()}) โดย ${actor.email || actor.name}`,
-    });
-
-    return { newBalance: wallet.balance };
+    return await api.post<{ newBalance: number }>('/admin/chips/grant', { targetUserId, amount });
   }
 
-  public async resetWallet(targetUserId: string, actor: UserProfile): Promise<void> {
-    const wallet = await this.walletRepo.resetWallet(targetUserId);
-
-    await this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'admin',
-      action: 'WALLET_RESET',
-      targetUserId,
-      targetName: targetUserId,
-      balanceAfter: wallet.balance,
-      detail: `รีเซ็ตยอดชิปของ ${targetUserId} กลับเป็น ${wallet.balance.toLocaleString()} ชิป โดย ${actor.email || actor.name}`,
-    });
+  public async resetWallet(targetUserId: string, _actor: UserProfile): Promise<void> {
+    await api.post('/admin/wallet/reset', { targetUserId });
   }
 
-  public async resetCooldowns(targetUserId: string, actor: UserProfile): Promise<void> {
-    const wallet = await this.walletRepo.getWallet(targetUserId);
-    wallet.resetCooldowns();
-    await this.walletRepo.saveWallet(wallet, targetUserId);
-
-    await this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'admin',
-      action: 'COOLDOWN_RESET',
-      targetUserId,
-      targetName: targetUserId,
-      detail: `ล้าง Cooldown (Bailout & Daily) ของ ${targetUserId} โดย ${actor.email || actor.name}`,
-    });
+  public async resetCooldowns(targetUserId: string, _actor: UserProfile): Promise<void> {
+    await api.post('/admin/cooldown/reset', { targetUserId });
   }
 
-  public async banUser(targetUserId: string, reason: string, actor: UserProfile): Promise<void> {
-    await api.post('/admin/ban', { targetUserId, reason, actorEmail: actor.email });
-    await this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'creator',
-      action: 'USER_BAN',
-      targetUserId,
-      detail: `ระงับบัญชี (Ban) ${targetUserId} ข้อหา: ${reason} โดย ${actor.email || actor.name}`,
-    });
+  public async banUser(targetUserId: string, reason: string, _actor: UserProfile): Promise<void> {
+    await api.post('/admin/ban', { targetUserId, reason });
   }
 
-  public async unbanUser(targetUserId: string, actor: UserProfile): Promise<void> {
+  public async unbanUser(targetUserId: string, _actor: UserProfile): Promise<void> {
     await api.post('/admin/unban', { targetUserId });
-    await this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'creator',
-      action: 'USER_UNBAN',
-      targetUserId,
-      detail: `ปลดระงับบัญชี (Unban) ${targetUserId} สำเร็จ โดย ${actor.email || actor.name}`,
-    });
   }
 
   public async changeUserRole(
@@ -138,17 +86,9 @@ export class D1AdminStore {
       throw new Error('เฉพาะผู้สร้าง (Creator / Admin++) เท่านั้นที่มีสิทธิ์เปลี่ยนระดับผู้ใช้');
     }
 
-    await api.post('/admin/role-override', {
-      identifier: targetUserId,
-      role: newRole,
-      actorEmail: actor.email,
-    });
+    await api.post('/admin/role-override', { identifier: targetUserId, role: newRole });
     if (targetEmail) {
-      await api.post('/admin/role-override', {
-        identifier: targetEmail,
-        role: newRole,
-        actorEmail: actor.email,
-      });
+      await api.post('/admin/role-override', { identifier: targetEmail, role: newRole });
     }
 
     // ซิงก์ลง LocalStorage ด้วย เพื่อให้การ resolve สิทธิ์ฝั่ง client เห็นผลทันทีโดยไม่ต้องรีเฟรช
@@ -156,15 +96,6 @@ export class D1AdminStore {
     if (targetEmail) {
       setUserRoleOverride(targetEmail, newRole);
     }
-
-    await this.addAuditLog({
-      actorEmail: actor.email,
-      actorRole: actor.role || 'creator',
-      action: newRole === 'player' ? 'ROLE_DEMOTE' : 'ROLE_PROMOTE',
-      targetUserId,
-      targetName: targetEmail || targetUserId,
-      detail: `เปลี่ยนระดับสิทธิ์ของ ${targetEmail || targetUserId} เป็น ${newRole.toUpperCase()} โดย ${actor.email || actor.name}`,
-    });
   }
 
   public async getSystemMetrics(): Promise<SystemMetrics> {

@@ -53,12 +53,15 @@ const SingleDie: React.FC<DiceProps> = ({ value, isRolling, dieIndex }) => {
     }
   }, [isRolling, value, dieIndex]);
 
-  const hopClass = isRolling ? `die-hop-${dieIndex}` : '';
-  const shadowClass = isRolling ? `shadow-hop-${dieIndex}` : '';
+  const hopClass = isRolling ? `die-hop-${dieIndex}` : `die-idle-${dieIndex}`;
+  const shadowClass = isRolling ? `shadow-hop-${dieIndex}` : `shadow-idle-${dieIndex}`;
+  // ตอนนิ่งให้เอียงช้าๆ ให้ดูมีชีวิต ตอนทอยปิดไว้เพื่อไม่ให้ซ้อนกับการหมุน
+  const tiltClass = isRolling ? '' : `dice-tilt dice-tilt-${dieIndex}`;
 
   return (
     <div className={`dice-wrapper perspective-1000 p-2 sm:p-3 ${hopClass}`}>
       {/* 3D Die Cube - Continuously interpolating to target angle without any warp */}
+      <div className={tiltClass} style={{ transformStyle: 'preserve-3d' }}>
       <div
         className="dice-container"
         style={{ transform: currentTransform }}
@@ -100,6 +103,7 @@ const SingleDie: React.FC<DiceProps> = ({ value, isRolling, dieIndex }) => {
           <div className="flex justify-between"><span className="pip" /><span className="pip" /></div>
           <div className="flex justify-between"><span className="pip" /><span className="pip" /></div>
         </div>
+      </div>
       </div>
 
       {/* Dynamic Table Contact Shadow Matching Vertical Hop */}

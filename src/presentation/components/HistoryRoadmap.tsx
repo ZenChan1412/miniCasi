@@ -8,7 +8,7 @@ interface HistoryRoadmapProps {
 
 export const HistoryRoadmap: React.FC<HistoryRoadmapProps> = ({ roadmap }) => {
   return (
-    <div className="w-full bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-md">
+    <div className="w-full bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-md transition-colors hover:border-slate-700">
       <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
         <div className="flex items-center gap-1.5 font-medium">
           <History className="w-3.5 h-3.5 text-slate-400" />
@@ -31,7 +31,7 @@ export const HistoryRoadmap: React.FC<HistoryRoadmapProps> = ({ roadmap }) => {
             return (
               <div
                 key={item.id}
-                className="flex flex-col items-center flex-shrink-0 group relative"
+                className="flex flex-col items-center flex-shrink-0 group relative animate-pop-in"
               >
                 <div
                   className={`min-w-9 h-7 px-1.5 rounded-xl flex items-center justify-center text-xs font-black shadow-sm transition-transform group-hover:scale-110 ${

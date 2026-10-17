@@ -32,6 +32,13 @@ export class ApiError extends Error {
 }
 
 const API_BASE = '/api';
+
+/** ฟังก์ชันคืน Google idToken ของผู้ใช้ปัจจุบัน (ลงทะเบียนโดย GoogleAuthService) */
+let authTokenProvider: (() => string | null | undefined) | null = null;
+
+export function setAuthTokenProvider(fn: (() => string | null | undefined) | null): void {
+  authTokenProvider = fn;
+}
 const REQUEST_TIMEOUT_MS = 8000;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -44,6 +51,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...(authTokenProvider?.() ? { Authorization: `Bearer ${authTokenProvider()}` } : {}),
         ...(init?.headers ?? {}),
       },
     });

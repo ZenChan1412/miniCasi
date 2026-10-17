@@ -102,7 +102,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
 
   return (
     <>
-      <header className="w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 transition-all">
+      <header className="w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 transition-all animate-fade-in">
         {/* ===== Mobile: แถวเดียวย่อย่ิง + ปุ่ม burger ===== */}
         <div className="lg:hidden flex items-center justify-between gap-2 px-3 py-2.5">
           {/* Brand */}
@@ -124,7 +124,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
           {/* Balance ย่อ */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 shadow-md">
             <Coins className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="text-base font-black text-amber-300 tracking-tight">
+            <span key={balance} className="text-base font-black text-amber-300 tracking-tight animate-bump inline-block">
               {balance.toLocaleString()}
             </span>
           </div>
@@ -169,7 +169,7 @@ export const WalletBar: React.FC<WalletBarProps> = ({
                   {roleBadge}
                 </div>
                 <div className="text-xl font-black text-amber-300 tracking-tight flex items-baseline gap-1.5">
-                  <span>{balance.toLocaleString()}</span>
+                  <span key={balance} className="inline-block animate-bump">{balance.toLocaleString()}</span>
                   <span className="text-xs text-amber-400/90 font-medium">CHIPS</span>
                 </div>
               </div>

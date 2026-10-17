@@ -1,7 +1,7 @@
 import { ManagedUser } from '../../domain/entities/ManagedUser';
 import { AuditRecord } from '../../domain/entities/AuditLog';
 import { UserProfile } from '../../domain/entities/User';
-import { resolveUserRole } from '../../domain/constants/AdminConfig';
+import { resolveTrustedRole } from '../../domain/constants/AdminConfig';
 import { ensureStorageReady, getStorageStatus } from '../../infrastructure/storage/storageProvider';
 import { LocalAdminStore } from './LocalAdminStore';
 import { D1AdminStore, SystemMetrics } from './D1AdminStore';
@@ -32,9 +32,8 @@ export class AdminService {
     if (!this.usingD1()) return;
 
     try {
-      const [bans, logs] = await Promise.all([this.d1.listBans(), this.d1.getAuditLogs()]);
-      this.bannedCache = new Set(bans.map((b) => b.playerId));
-      this.auditCache = logs;
+      // ผู้เล่นทั่วไปเรียก /admin/* ไม่ได้ จึงใช้ endpoint สาธารณะ และไม่ดึง audit ที่นี่
+      this.bannedCache = new Set(await this.d1.listBannedIds());
     } catch (err) {
       console.error('ไม่สามารถรีเฟรชข้อมูล Admin จาก D1:', err);
     }
@@ -102,7 +101,7 @@ export class AdminService {
       return {
         ...user,
         // สิทธิ์สุดท้ายตัดสินฝั่ง client เพื่อให้ตรงกับ AdminConfig (อีเมลผู้สร้าง/แอดมินที่ตั้งไว้)
-        role: resolveUserRole(user.id, user.email, user.role),
+        role: resolveTrustedRole(user.email, user.role),
         name: isCurrent ? currentUser!.name : user.name,
         email: isCurrent ? currentUser!.email : user.email,
         picture: isCurrent ? currentUser!.picture || user.picture : user.picture,
@@ -190,15 +189,8 @@ export class AdminService {
   }
 
   public addAuditLog(entry: Omit<AuditRecord, 'id' | 'timestamp'>): void {
-    if (this.usingD1()) {
-      this.d1
-        .addAuditLog(entry)
-        .then((record) => {
-          this.auditCache = [record, ...this.auditCache].slice(0, 100);
-        })
-        .catch((err) => console.error('บันทึก Audit Log ลง D1 ไม่สำเร็จ:', err));
-      return;
-    }
+    // โหมด D1: Worker เขียน audit log เองแล้ว ไม่ต้องยิง API
+    if (this.usingD1()) return;
     this.local.addAuditLog(entry);
   }
 

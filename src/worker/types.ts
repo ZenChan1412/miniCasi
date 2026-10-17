@@ -35,6 +35,8 @@ export interface AssetsBinding {
 export interface Env {
   DB: D1Database;
   ASSETS: AssetsBinding;
+  /** Google OAuth Client ID — ใช้ตรวจ aud ของ ID token ที่เรียก /api/admin/* (ไม่ใช่ความลับ) */
+  GOOGLE_CLIENT_ID?: string;
   /** AI หลัก (OpenAI-compatible) — ตั้งใน Cloudflare Dashboard; base URL ลงท้าย /v1 */
   AI_BASE_URL?: string;
   AI_API_KEY?: string;

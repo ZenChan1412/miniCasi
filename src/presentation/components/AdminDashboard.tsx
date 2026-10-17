@@ -1,3 +1,4 @@
+import { ApiError } from '../../infrastructure/api/apiClient';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Crown,
@@ -79,6 +80,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setDynamicAdmins(getDynamicAdminEmails());
     } catch (e) {
       console.error('Error loading admin data:', e);
+      if (e instanceof ApiError) {
+        setNotification({
+          type: 'error',
+          message: e.status === 401 ? `${e.message} (เซสชันหมดอายุ กรุณาล็อกอินใหม่)` : e.message,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -128,6 +135,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return { totalUsers, circulatingChips, totalRounds, totalBanned };
   }, [users]);
 
+  // ข้อความ error ที่ผู้ใช้ควรเห็น: ApiError จาก Worker (401/403 ฯลฯ) แสดงตามจริง
+  const errorText = (e: unknown, fallback: string): string => {
+    if (e instanceof ApiError) {
+      return e.status === 401 ? `${e.message} (เซสชันหมดอายุ กรุณาล็อกอินใหม่)` : e.message;
+    }
+    return e instanceof Error && e.message ? e.message : fallback;
+  };
+
   // Handlers
   const handleGrantChips = async () => {
     if (!grantModalUser || grantAmount <= 0) return;
@@ -139,7 +154,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await loadDashboardData();
       onRefreshWallet();
     } catch (e) {
-      showNotice('error', e instanceof Error ? e.message : 'เติมชิปล้มเหลว');
+      showNotice('error', errorText(e, 'เติมชิปล้มเหลว'));
     } finally {
       setActionBusy(false);
     }
@@ -154,7 +169,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await loadDashboardData();
       onRefreshWallet();
     } catch (e) {
-      showNotice('error', 'รีเซ็ตล้มเหลว');
+      showNotice('error', errorText(e, 'รีเซ็ตล้มเหลว'));
     } finally {
       setActionBusy(false);
     }
@@ -167,7 +182,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       showNotice('success', `ล้าง Cooldown (Bailout + Daily) ให้ ${user.name} สำเร็จ`);
       await loadDashboardData();
     } catch (e) {
-      showNotice('error', 'ล้าง Cooldown ล้มเหลว');
+      showNotice('error', errorText(e, 'ล้าง Cooldown ล้มเหลว'));
     } finally {
       setActionBusy(false);
     }
@@ -196,7 +211,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
       await loadDashboardData();
     } catch (e) {
-      showNotice('error', 'ดำเนินการล้มเหลว');
+      showNotice('error', errorText(e, 'ดำเนินการล้มเหลว'));
     } finally {
       setActionBusy(false);
     }
@@ -241,7 +256,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       showNotice('success', `ปรับระดับสิทธิ์ของ "${targetUser.name}" เป็น ${newRole.toUpperCase()} เรียบร้อยแล้ว`);
       await loadDashboardData();
     } catch (e) {
-      showNotice('error', e instanceof Error ? e.message : 'เปลี่ยนระดับสิทธิ์ไม่สำเร็จ');
+      showNotice('error', errorText(e, 'เปลี่ยนระดับสิทธิ์ไม่สำเร็จ'));
       await loadDashboardData();
     } finally {
       setActionBusy(false);
@@ -317,7 +332,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Global Notification Banner */}
       {notification && (
         <div
-          className={`sticky top-[57px] z-30 px-6 py-2.5 flex items-center justify-center gap-2 text-xs font-semibold shadow-md animate-fade-in ${
+          className={`sticky top-[57px] z-30 px-6 py-2.5 flex items-center justify-center gap-2 text-xs font-semibold shadow-md animate-slide-in-right ${
             notification.type === 'success'
               ? 'bg-emerald-950/90 text-emerald-300 border-b border-emerald-500/30'
               : 'bg-red-950/90 text-red-300 border-b border-red-500/30'
@@ -332,7 +347,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* 1. Top KPI Summary Grid */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
+          <div style={{ animationDelay: `0ms` }} className="animate-fade-in-up hover-lift bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
             <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
               <Users className="w-5 h-5" />
             </div>
@@ -342,7 +357,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
+          <div style={{ animationDelay: `70ms` }} className="animate-fade-in-up hover-lift bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
             <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
               <Coins className="w-5 h-5" />
             </div>
@@ -352,7 +367,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
+          <div style={{ animationDelay: `140ms` }} className="animate-fade-in-up hover-lift bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
             <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <Dice5 className="w-5 h-5" />
             </div>
@@ -362,7 +377,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
+          <div style={{ animationDelay: `210ms` }} className="animate-fade-in-up hover-lift bg-slate-900/70 border border-slate-800 p-4 rounded-2xl flex items-center gap-3.5 shadow-lg">
             <div className="p-3 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
               <Ban className="w-5 h-5" />
             </div>
@@ -505,8 +520,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </td>
                       </tr>
                     ) : (
-                      filteredUsers.map((u) => (
-                        <tr key={u.id} className="hover:bg-slate-850/50 transition-colors">
+                      filteredUsers.map((u, idx) => (
+                        <tr key={u.id} className="hover:bg-slate-850/50 transition-colors animate-fade-in-up" style={{ animationDelay: `${Math.min(idx, 10) * 40}ms` }}>
                           {/* User info */}
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
@@ -737,10 +752,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   ยังไม่มีประวัติการทำรายการในระบบ
                 </div>
               ) : (
-                auditLogs.map((log) => (
+                auditLogs.map((log, idx) => (
                   <div
                     key={log.id}
-                    className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
+                    style={{ animationDelay: `${Math.min(idx, 10) * 40}ms` }}
+                    className="animate-fade-in-up p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -890,7 +906,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Grant Chips Modal */}
       {grantModalUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
+          <div className="animate-pop-in relative w-full max-w-md bg-slate-900 border border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300">
                 <Coins className="w-6 h-6" />

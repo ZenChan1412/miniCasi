@@ -103,8 +103,8 @@ export const DbStatusPanel: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {health.tables.map((table) => (
-                <tr key={table.name} className="hover:bg-slate-800/40">
+              {health.tables.map((table, idx) => (
+                <tr key={table.name} className="hover:bg-slate-800/40 animate-fade-in-up" style={{ animationDelay: `${Math.min(idx, 10) * 40}ms` }}>
                   <td className="px-4 py-2.5 font-mono text-slate-200">{table.name}</td>
                   <td className="px-4 py-2.5">
                     {table.exists ? (

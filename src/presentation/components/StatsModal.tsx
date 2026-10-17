@@ -12,8 +12,8 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, stats, onClose }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-sm bg-slate-900 border border-slate-700/80 rounded-3xl p-5 shadow-2xl relative space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-sm animate-pop-in bg-slate-900 border border-slate-700/80 rounded-3xl p-5 shadow-2xl relative space-y-4">
         {/* Close Button */}
         <button
           type="button"

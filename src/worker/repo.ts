@@ -70,7 +70,8 @@ export async function ensurePlayer(
       profile?.email ?? null,
       profile?.picture ?? null,
       provider,
-      profile?.role ?? 'player',
+      // ห้ามเชื่อ role จาก client — ผู้เล่นใหม่เป็น 'player' เสมอ (สิทธิ์จริงมาจาก role_overrides/AdminConfig)
+      'player',
       ts,
       ts,
       hasProfile,
@@ -235,7 +236,8 @@ interface TransactionInput {
     | 'BAILOUT'
     | 'DAILY_BONUS'
     | 'RESET'
-    | 'PURCHASE';
+    | 'PURCHASE'
+    | 'ADMIN_GRANT';
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
@@ -862,4 +864,77 @@ export async function checkHealth(db: D1Database): Promise<HealthReport> {
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin actions (เรียกจาก endpoint ที่ผ่าน authenticate แล้วเท่านั้น)    */
+/* ------------------------------------------------------------------ */
+
+/** เพิ่มชิปแบบ atomic (balance = balance + ?) แล้วบันทึก wallet_transactions */
+export async function grantChips(
+  db: D1Database,
+  playerId: string,
+  amount: number
+): Promise<{ before: number; newBalance: number }> {
+  const wallet = await getWallet(db, playerId);
+  const row = await db
+    .prepare(
+      `UPDATE virtual_wallets
+          SET balance = balance + ?, version = version + 1, updated_at = ?
+        WHERE player_id = ?
+        RETURNING balance`
+    )
+    .bind(amount, now(), playerId)
+    .first<{ balance: number }>();
+  const newBalance = row?.balance ?? wallet.balance + amount;
+
+  await recordTransaction(db, {
+    walletId: wallet.walletId,
+    txnType: 'ADMIN_GRANT',
+    amount,
+    balanceBefore: newBalance - amount,
+    balanceAfter: newBalance,
+    notes: 'ผู้ดูแลระบบเพิ่มชิปให้',
+  });
+  return { before: newBalance - amount, newBalance };
+}
+
+/** ล้าง cooldown ของ Bailout และ Daily */
+export async function resetCooldowns(db: D1Database, playerId: string): Promise<void> {
+  await getWallet(db, playerId);
+  await db
+    .prepare(
+      `UPDATE virtual_wallets
+          SET last_bailout_at = 0, last_daily_claim_at = 0, version = version + 1, updated_at = ?
+        WHERE player_id = ?`
+    )
+    .bind(now(), playerId)
+    .run();
+}
+
+/** id + อีเมลของผู้เล่น (null ถ้าไม่มีในตาราง players) */
+export async function getPlayerIdentity(
+  db: D1Database,
+  playerId: string
+): Promise<{ id: string; email: string | null; nickname: string } | null> {
+  return await db
+    .prepare('SELECT id, email, nickname FROM players WHERE id = ?')
+    .bind(playerId)
+    .first<{ id: string; email: string | null; nickname: string }>();
+}
+
+/** รายการ player_id ที่ถูกแบน (ไม่มีเหตุผล) — ใช้เป็น public endpoint */
+export async function listBannedIds(db: D1Database): Promise<string[]> {
+  const res = await db.prepare('SELECT player_id FROM user_bans').all<{ player_id: string }>();
+  return res.results.map((r) => r.player_id);
+}
+
+/** ใช้โค้ดแจกชิป — เติมชิปตามจำนวนที่โค้ดระบุ (ไม่จำกัดครั้ง) */
+export async function redeemCode(
+  db: D1Database,
+  playerId: string,
+  chips: number
+): Promise<{ newBalance: number }> {
+  const { newBalance } = await grantChips(db, playerId, chips);
+  return { newBalance };
 }

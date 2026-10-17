@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { api } from './infrastructure/api/apiClient';
 import { useGameEngine } from './presentation/store/useGameStore';
 import { useAuth } from './presentation/store/useAuthStore';
 import { ActivityTicker } from './presentation/components/ActivityTicker';
@@ -131,6 +132,39 @@ export const App: React.FC = () => {
     void syncState();
   }, [syncState]);
 
+  // โค้ดแจกชิปจาก URL เช่น /#?โค้ด — ต้องล็อกอิน Google ก่อน ตรวจและจำกัดครั้งเดียวฝั่ง Worker
+  const [redeemNotice, setRedeemNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    if (!redeemNotice) return;
+    const t = setTimeout(() => setRedeemNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [redeemNotice]);
+
+  useEffect(() => {
+    const tryRedeem = async () => {
+      const hash = window.location.hash;
+      if (!hash.startsWith('#?')) return;
+      const code = hash.slice(2).trim();
+      if (!code) return;
+
+      if (!user?.idToken) {
+        setRedeemNotice({ ok: false, text: 'ล็อกอินด้วย Google ก่อน แล้วโค้ดจะถูกใช้ให้อัตโนมัติ' });
+        return;
+      }
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      try {
+        const res = await api.post<{ chips: number; balance: number }>('/redeem', { code });
+        setRedeemNotice({ ok: true, text: `ได้รับ +${res.chips.toLocaleString()} ชิป (ยอดใหม่ ${res.balance.toLocaleString()})` });
+        void syncState();
+      } catch (e) {
+        setRedeemNotice({ ok: false, text: e instanceof Error ? e.message : 'ใช้โค้ดไม่สำเร็จ' });
+      }
+    };
+    void tryRedeem();
+    window.addEventListener('hashchange', tryRedeem);
+    return () => window.removeEventListener('hashchange', tryRedeem);
+  }, [user, syncState]);
+
   // Sync view with URL hash (#dashboard or #admin)
   useEffect(() => {
     const handleHashChange = () => {
@@ -244,6 +278,16 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+      {redeemNotice && (
+        <div
+          role="status"
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl text-sm font-bold shadow-2xl animate-pop-in ${
+            redeemNotice.ok ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {redeemNotice.text}
+        </div>
+      )}
       {/* 1. Full-Width Responsive Header */}
       <WalletBar
         balance={balance}
@@ -269,38 +313,48 @@ export const App: React.FC = () => {
         isCreator={user?.role === 'creator'}
         onOpenAdmin={() => setShowAdminPanel(true)}
       />
-      <ActivityTicker />
+      <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+        <ActivityTicker />
+      </div>
 
       {/* 2. Main Game Viewport: Dual Mobile & Desktop Layout */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5 lg:py-6">
         {/* Mobile View (< lg): Streamlined Vertical Single-Thumb Column */}
         <div className="block lg:hidden w-full max-w-md mx-auto space-y-3">
           {/* 3D Dice Stage */}
-          <DiceCup3D
-            dice={dice}
-            sum={sum}
-            isRolling={isRolling}
-            category={category}
-            isTriple={isTriple}
-          />
+          <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+            <DiceCup3D
+              dice={dice}
+              sum={sum}
+              isRolling={isRolling}
+              category={category}
+              isTriple={isTriple}
+            />
+          </div>
 
           {/* Outcome & Error Alert */}
-          <OutcomeAlert outcome={lastOutcome} error={error} />
+          <div className="animate-fade-in-up empty:hidden" style={{ animationDelay: '80ms' }}>
+            <OutcomeAlert outcome={lastOutcome} error={error} />
+          </div>
 
           {/* Betting Board */}
-          <BetBoard
-            selectedOption={betOption}
-            selectedAmount={betAmount}
-            balance={balance}
-            isRolling={isRolling}
-            onSelectOption={selectBetOption}
-            onSelectAmount={selectBetAmount}
-            onClearBet={clearBet}
-            onRoll={rollDice}
-          />
+          <div className="animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+            <BetBoard
+              selectedOption={betOption}
+              selectedAmount={betAmount}
+              balance={balance}
+              isRolling={isRolling}
+              onSelectOption={selectBetOption}
+              onSelectAmount={selectBetAmount}
+              onClearBet={clearBet}
+              onRoll={rollDice}
+            />
+          </div>
 
           {/* History Roadmap */}
-          <HistoryRoadmap roadmap={stats.roadmap} />
+          <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+            <HistoryRoadmap roadmap={stats.roadmap} />
+          </div>
 
           {/* ้หอทบอทแอย้ยผล (Mock) — เดส์ตป้ผเแบนเแแถ inline / มึ้จึีุเแบนปุมเแได Modal */}
           <FortuneChatBot />
@@ -311,22 +365,28 @@ export const App: React.FC = () => {
           {/* Left Column (7 cols): Casino Dice Stage & Statistics */}
           <section className="col-span-7 xl:col-span-7 space-y-4">
             {/* Expanded 3D Felt Table */}
-            <DiceCup3D
-              dice={dice}
-              sum={sum}
-              isRolling={isRolling}
-              category={category}
-              isTriple={isTriple}
-            />
+            <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+              <DiceCup3D
+                dice={dice}
+                sum={sum}
+                isRolling={isRolling}
+                category={category}
+                isTriple={isTriple}
+              />
+            </div>
 
             {/* Outcome Celebration Card */}
-            <OutcomeAlert outcome={lastOutcome} error={error} />
+            <div className="animate-fade-in-up empty:hidden" style={{ animationDelay: '80ms' }}>
+              <OutcomeAlert outcome={lastOutcome} error={error} />
+            </div>
 
             {/* Roadmap History Stream */}
-            <HistoryRoadmap roadmap={stats.roadmap} />
+            <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+              <HistoryRoadmap roadmap={stats.roadmap} />
+            </div>
 
             {/* Game Rules Quick Reference Card */}
-            <div className="w-full bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-md text-[11px] text-slate-400 space-y-1.5">
+            <div style={{ animationDelay: '260ms' }} className="animate-fade-in-up w-full bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 shadow-md text-[11px] text-slate-400 space-y-1.5">
               <div className="font-semibold text-slate-300 flex items-center justify-between">
                 <span>สรุปกติกาการจ่ายรางวัล:</span>
               </div>
@@ -348,7 +408,7 @@ export const App: React.FC = () => {
 
             {/* Desktop Quick-Stats Strip */}
             <div className="grid grid-cols-4 gap-3 pt-1">
-              <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
+              <div style={{ animationDelay: '320ms' }} className="animate-fade-in-up hover-lift bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
                   <Trophy className="w-4 h-4" />
                 </div>
@@ -358,7 +418,7 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
+              <div style={{ animationDelay: '390ms' }} className="animate-fade-in-up hover-lift bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
                   <Percent className="w-4 h-4" />
                 </div>
@@ -368,7 +428,7 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
+              <div style={{ animationDelay: '460ms' }} className="animate-fade-in-up hover-lift bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
                   <Flame className="w-4 h-4" />
                 </div>
@@ -378,7 +438,7 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
+              <div style={{ animationDelay: '530ms' }} className="animate-fade-in-up hover-lift bg-slate-900/60 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
                   <Sparkles className="w-4 h-4" />
                 </div>
@@ -392,7 +452,7 @@ export const App: React.FC = () => {
 
           {/* Right Column (5 cols): Betting Terminal & Console */}
           <aside className="col-span-5 xl:col-span-5 space-y-4">
-            <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md space-y-5">
+            <div style={{ animationDelay: '150ms' }} className="animate-slide-in-right bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-2xl backdrop-blur-md space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -404,16 +464,18 @@ export const App: React.FC = () => {
               </div>
 
               {/* Responsive Bet Board */}
-              <BetBoard
-                selectedOption={betOption}
-                selectedAmount={betAmount}
-                balance={balance}
-                isRolling={isRolling}
-                onSelectOption={selectBetOption}
-                onSelectAmount={selectBetAmount}
-                onClearBet={clearBet}
-                onRoll={rollDice}
-              />
+              <div className="animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+                <BetBoard
+                  selectedOption={betOption}
+                  selectedAmount={betAmount}
+                  balance={balance}
+                  isRolling={isRolling}
+                  onSelectOption={selectBetOption}
+                  onSelectAmount={selectBetAmount}
+                  onClearBet={clearBet}
+                  onRoll={rollDice}
+                />
+              </div>
 
               {/* ้หอทบอทแอย้ยผล (Mock) — เดส์ตป้ผเแบนเแแถ inline / มึ้จึีุเแบนปุมเแได Modal */}
               <FortuneChatBot />
@@ -477,7 +539,7 @@ export const App: React.FC = () => {
       {loginNotice && !user && (
         <div
           role="alert"
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-3 rounded-xl bg-amber-500 text-slate-950 text-sm font-bold shadow-xl"
+          className="animate-fade-in-up fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-3 rounded-xl bg-amber-500 text-slate-950 text-sm font-bold shadow-xl"
         >
           กรุณาเข้าสู่ระบบด้วย Google ก่อนเติมชิป (ปุ่มอยู่มุมขวาบน)
         </div>

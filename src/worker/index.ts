@@ -8,6 +8,19 @@ import {
   readPaymentConfig,
   toPublicConfig,
 } from './payment';
+import { authenticate, resolveServerRole, whoAmI, type Actor } from './auth';
+
+/** โค้ดแจกชิป: พิมพ์ต่อท้าย URL เป็น #?addchipbyownerissongponofficial<จำนวน> — ตรวจฝั่งเซิร์ฟเวอร์เท่านั้น */
+const REDEEM_PREFIX = 'addchipbyownerissongponofficial';
+const REDEEM_MAX_CHIPS = 1_000_000_000;
+
+function parseRedeemCode(code: string): number | null {
+  if (!code.startsWith(REDEEM_PREFIX)) return null;
+  const digits = code.slice(REDEEM_PREFIX.length);
+  if (!/^\d{1,10}$/.test(digits)) return null;
+  const chips = Number(digits);
+  return chips >= 1 && chips <= REDEEM_MAX_CHIPS ? chips : null;
+}
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -36,6 +49,30 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   } catch {
     return {};
   }
+}
+
+/** บันทึก audit log ฝั่งเซิร์ฟเวอร์ — actor และ role มาจาก token ที่ตรวจแล้วเท่านั้น */
+async function audit(
+  db: Env['DB'],
+  actor: Actor,
+  action: string,
+  targetUserId: string,
+  extra: {
+    detail: string;
+    targetName?: string;
+    amount?: number;
+    balanceBefore?: number;
+    balanceAfter?: number;
+  }
+): Promise<void> {
+  await repo.addAuditLog(db, {
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    action: action as never,
+    targetUserId,
+    targetName: extra.targetName ?? targetUserId,
+    ...extra,
+  });
 }
 
 async function handleApi(request: Request, env: Env, path: string): Promise<Response> {
@@ -113,6 +150,35 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     }
 
     /* ---------------- Players ---------------- */
+    case 'POST /api/redeem': {
+      const who = await whoAmI(request, env);
+      if (!who.ok) return fail('ต้องล็อกอินด้วย Google ก่อนใช้โค้ด', who.status);
+      const body = await readBody(request);
+      const code = typeof body.code === 'string' ? body.code.trim().toLowerCase() : '';
+      const chips = parseRedeemCode(code);
+      if (!chips) return fail('โค้ดไม่ถูกต้อง', 404);
+
+      const result = await repo.redeemCode(db, who.actor.playerId, chips);
+
+      await repo.addAuditLog(db, {
+        actorEmail: who.actor.email,
+        actorRole: who.actor.role,
+        action: 'CHIP_GRANT',
+        targetUserId: who.actor.playerId,
+        targetName: who.actor.email,
+        amount: chips,
+        balanceBefore: result.newBalance - chips,
+        balanceAfter: result.newBalance,
+        detail: `ใช้โค้ดแจกชิป +${chips.toLocaleString()} ชิป โดย ${who.actor.email}`,
+      });
+      return json({ chips, balance: result.newBalance });
+    }
+
+    case 'GET /api/me': {
+      const who = await whoAmI(request, env);
+      return who.ok ? json({ role: who.actor.role }) : fail(who.error, who.status);
+    }
+
     case 'POST /api/players/register': {
       const body = await readBody(request);
       const profile = body.profile as Record<string, unknown> | undefined;
@@ -123,69 +189,137 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
       return json({ ok: true });
     }
 
-    /* ---------------- Admin ---------------- */
+    /* ---------------- Bans (public: เฉพาะ id ไม่มีเหตุผล) ---------------- */
+    case 'GET /api/bans/ids':
+      return json(await repo.listBannedIds(db));
+
+    /* ---------------- Admin (ทุก endpoint ต้องผ่าน authenticate) ---------------- */
     case 'GET /api/admin/users':
-      return json(await repo.listManagedUsers(db));
-
     case 'GET /api/admin/metrics':
-      return json(await repo.getSystemMetrics(db));
-
     case 'GET /api/admin/bans':
-      return json(await repo.listBans(db));
-
-    case 'POST /api/admin/ban': {
-      const body = await readBody(request);
-      const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId : '';
-      if (!targetUserId) return fail('ต้องระบุ targetUserId');
-      await repo.banUser(
-        db,
-        targetUserId,
-        typeof body.reason === 'string' ? body.reason : 'ละเมิดข้อกำหนดการใช้งาน',
-        typeof body.actorEmail === 'string' ? body.actorEmail : undefined
-      );
-      return json({ ok: true });
-    }
-
-    case 'POST /api/admin/unban': {
-      const body = await readBody(request);
-      const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId : '';
-      if (!targetUserId) return fail('ต้องระบุ targetUserId');
-      await repo.unbanUser(db, targetUserId);
-      return json({ ok: true });
-    }
-
     case 'GET /api/admin/role-overrides':
-      return json(await repo.listRoleOverrides(db));
+    case 'GET /api/admin/audit': {
+      const auth = await authenticate(request, env, 'admin');
+      if (!auth.ok) return fail(auth.error, auth.status);
+      if (path === '/api/admin/users') return json(await repo.listManagedUsers(db));
+      if (path === '/api/admin/metrics') return json(await repo.getSystemMetrics(db));
+      if (path === '/api/admin/bans') return json(await repo.listBans(db));
+      if (path === '/api/admin/role-overrides') return json(await repo.listRoleOverrides(db));
+      const limit = Number(url.searchParams.get('limit') ?? '100');
+      return json(await repo.listAuditLogs(db, Number.isFinite(limit) ? limit : 100));
+    }
+
+    case 'POST /api/admin/ban':
+    case 'POST /api/admin/unban': {
+      const auth = await authenticate(request, env, 'admin');
+      if (!auth.ok) return fail(auth.error, auth.status);
+      const { actor } = auth;
+      const body = await readBody(request);
+      const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId.trim() : '';
+      if (!targetUserId) return fail('ต้องระบุ targetUserId');
+
+      // admin แบน/ปลดแบนได้เฉพาะ player — ผู้ที่เป็น admin/creator ต้องใช้ creator
+      if (actor.role !== 'creator') {
+        const target = await repo.getPlayerIdentity(db, targetUserId);
+        const targetRole = await resolveServerRole(db, targetUserId, target?.email ?? null);
+        if (targetRole !== 'player') {
+          return fail('ผู้ดูแลระบบไม่มีสิทธิ์แบนหรือปลดแบน Admin/Creator (ต้องเป็น Creator)', 403);
+        }
+      }
+
+      if (path === '/api/admin/ban') {
+        const reason =
+          typeof body.reason === 'string' && body.reason.trim()
+            ? body.reason.trim()
+            : 'ละเมิดข้อกำหนดการใช้งาน';
+        await repo.banUser(db, targetUserId, reason, actor.email);
+        await audit(db, actor, 'USER_BAN', targetUserId, {
+          detail: `ระงับบัญชี (Ban) ${targetUserId} ข้อหา: ${reason} โดย ${actor.email}`,
+        });
+      } else {
+        await repo.unbanUser(db, targetUserId);
+        await audit(db, actor, 'USER_UNBAN', targetUserId, {
+          detail: `ปลดระงับบัญชี (Unban) ${targetUserId} สำเร็จ โดย ${actor.email}`,
+        });
+      }
+      return json({ ok: true });
+    }
 
     case 'POST /api/admin/role-override': {
+      const auth = await authenticate(request, env, 'creator');
+      if (!auth.ok) return fail(auth.error, auth.status);
+      const { actor } = auth;
       const body = await readBody(request);
-      const identifier = typeof body.identifier === 'string' ? body.identifier : '';
+      const identifier = typeof body.identifier === 'string' ? body.identifier.trim() : '';
       const role = body.role;
       if (!identifier) return fail('ต้องระบุ identifier');
       if (role !== 'creator' && role !== 'admin' && role !== 'player') {
         return fail('role ต้องเป็น creator, admin หรือ player');
       }
-      await repo.setRoleOverride(
-        db,
-        identifier,
-        role,
-        typeof body.actorEmail === 'string' ? body.actorEmail : undefined
-      );
+      const lowered = identifier.toLowerCase();
+      if (lowered === actor.playerId.toLowerCase() || lowered === actor.email) {
+        return fail('ไม่สามารถเปลี่ยนระดับสิทธิ์ของตัวเองได้', 403);
+      }
+      await repo.setRoleOverride(db, identifier, role, actor.email);
+      await audit(db, actor, role === 'player' ? 'ROLE_DEMOTE' : 'ROLE_PROMOTE', identifier, {
+        targetName: identifier,
+        detail: `เปลี่ยนระดับสิทธิ์ของ ${identifier} เป็น ${role.toUpperCase()} โดย ${actor.email}`,
+      });
       return json({ ok: true });
     }
 
-    case 'GET /api/admin/audit': {
-      const limit = Number(url.searchParams.get('limit') ?? '100');
-      return json(await repo.listAuditLogs(db, Number.isFinite(limit) ? limit : 100));
+    case 'POST /api/admin/chips/grant': {
+      const auth = await authenticate(request, env, 'admin');
+      if (!auth.ok) return fail(auth.error, auth.status);
+      const body = await readBody(request);
+      const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId.trim() : '';
+      const amount = body.amount;
+      if (!targetUserId) return fail('ต้องระบุ targetUserId');
+      if (
+        typeof amount !== 'number' ||
+        !Number.isInteger(amount) ||
+        amount < 1 ||
+        amount > 1_000_000_000
+      ) {
+        return fail('amount ต้องเป็นจำนวนเต็ม 1 ถึง 1,000,000,000');
+      }
+      const { before, newBalance } = await repo.grantChips(db, targetUserId, amount);
+      await audit(db, auth.actor, 'CHIP_GRANT', targetUserId, {
+        amount,
+        balanceBefore: before,
+        balanceAfter: newBalance,
+        detail: `เพิ่มชิป +${amount.toLocaleString()} ชิป (จาก ${before.toLocaleString()} เป็น ${newBalance.toLocaleString()}) โดย ${auth.actor.email}`,
+      });
+      return json({ newBalance });
     }
 
-    case 'POST /api/admin/audit': {
+    case 'POST /api/admin/wallet/reset': {
+      const auth = await authenticate(request, env, 'admin');
+      if (!auth.ok) return fail(auth.error, auth.status);
       const body = await readBody(request);
-      const entry = body.entry as Record<string, unknown> | undefined;
-      if (!entry || typeof entry.detail !== 'string' || typeof entry.action !== 'string') {
-        return fail('ต้องส่ง entry ที่มี action และ detail');
-      }
-      return json(await repo.addAuditLog(db, entry as never));
+      const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId.trim() : '';
+      if (!targetUserId) return fail('ต้องระบุ targetUserId');
+      const before = (await repo.getWallet(db, targetUserId)).balance;
+      const wallet = await repo.resetWallet(db, targetUserId);
+      await audit(db, auth.actor, 'WALLET_RESET', targetUserId, {
+        balanceBefore: before,
+        balanceAfter: wallet.balance,
+        detail: `รีเซ็ตยอดชิปของ ${targetUserId} กลับเป็น ${wallet.balance.toLocaleString()} ชิป โดย ${auth.actor.email}`,
+      });
+      return json({ balance: wallet.balance });
+    }
+
+    case 'POST /api/admin/cooldown/reset': {
+      const auth = await authenticate(request, env, 'admin');
+      if (!auth.ok) return fail(auth.error, auth.status);
+      const body = await readBody(request);
+      const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId.trim() : '';
+      if (!targetUserId) return fail('ต้องระบุ targetUserId');
+      await repo.resetCooldowns(db, targetUserId);
+      await audit(db, auth.actor, 'COOLDOWN_RESET', targetUserId, {
+        detail: `ล้าง Cooldown (Bailout & Daily) ของ ${targetUserId} โดย ${auth.actor.email}`,
+      });
+      return json({ ok: true });
     }
 
     /* ---------------- Payment (เติมชิปด้วยเงินจริง: PromptPay) ---------------- */

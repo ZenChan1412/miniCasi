@@ -233,6 +233,32 @@ export function resolveUserRole(
 }
 
 /**
+ * role ขั้นสูงสุดที่ "เชื่อได้" จากรายชื่ออีเมลในโค้ด (+ env) เท่านั้น ไม่อ่าน LocalStorage
+ * ใช้ตอนเปิด session เพื่อไม่ให้แก้ DevTools แล้วยกระดับตัวเองได้
+ * (override ใน LocalStorage ลดสิทธิ์ลงได้ แต่เพิ่มเกินรายชื่อนี้ไม่ได้ — สิทธิ์จริงตัดสินที่ Worker)
+ */
+export function resolveTrustedRole(
+  email?: string | null,
+  serverRole?: 'creator' | 'admin' | 'player' | null
+): 'creator' | 'admin' | 'player' {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return 'player';
+  if (serverRole === 'creator' || serverRole === 'admin' || serverRole === 'player') {
+    // role จาก server เชื่อได้ แต่รายชื่อในโค้ดเป็นขั้นต่ำเสมอ
+    const floor = CREATOR_EMAILS.includes(normalized)
+      ? 'creator'
+      : ADMIN_EMAILS.includes(normalized)
+      ? 'admin'
+      : 'player';
+    const rank = { player: 0, admin: 1, creator: 2 } as const;
+    return rank[serverRole] >= rank[floor] ? serverRole : floor;
+  }
+  if (CREATOR_EMAILS.includes(normalized)) return 'creator';
+  if (ADMIN_EMAILS.includes(normalized)) return 'admin';
+  return 'player';
+}
+
+/**
  * ตรวจสอบว่าเป็นผู้ดูแลระบบหรือไม่ (รวม Creator ด้วย)
  */
 export function isAdminEmail(email?: string | null): boolean {
